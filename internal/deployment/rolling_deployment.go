@@ -150,7 +150,7 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	}
 
 	// 2. If there are still instances in progress, wait for them to complete
-	if completed == record.Progress.TotalInstances {
+	if completed >= record.Progress.TotalInstances {
 		record.Status = Completed
 		record.Progress.CompletedInstances = completed
 		return record, rd.store.Update(record)

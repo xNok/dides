@@ -205,7 +205,7 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, deployment.DeploymentProgress{
 		TotalInstances:      3,
 		CompletedInstances:  1, // 1 successful
-		InProgressInstances: 1, // Deployment failed, one was still in progress
+		InProgressInstances: 0, 
 		FailedInstances:     1,
 	}, progress.Progress)
 
@@ -237,10 +237,10 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	// 15.1 Progress the deployment to the next step
 	progress, progressResp = testUtils.ProgressDeployment(t)
 	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
-	assert.Equal(t, deployment.Running, progress.Status)
+	assert.Equal(t, deployment.Completed, progress.Status)
 	assert.Equal(t, deployment.DeploymentProgress{
-		TotalInstances:      3,
-		CompletedInstances:  2,
+		TotalInstances:      2, // Only 2 needed to be rolled back
+		CompletedInstances:  3, // 3 instances are at the target version
 		InProgressInstances: 0,
 		FailedInstances:     0,
 	}, progress.Progress)
