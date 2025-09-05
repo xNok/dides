@@ -21,7 +21,7 @@ type InventoryService interface {
 	UpdateDesiredState(instanceKey string, state inventory.State) error
 
 	// CountByLabels returns the total number of instances that match the given labels
-	CountByLabels(labels map[string]string) int
+	CountByLabels(labels map[string]string) (int, error)
 	// CountNeedingUpdate returns the total number of instances that need to be updated (haven't been started yet)
 	CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error)
 	// GetNeedingUpdate returns instances that need to be updated (options can limit the number of results for batching)
@@ -53,7 +53,10 @@ func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
 	}
 
 	// 2. Get total count of instances matching labels for progress tracking
-	totalInstances := rd.inventory.CountByLabels(record.Request.Labels)
+	totalInstances, err := rd.inventory.CountByLabels(record.Request.Labels)
+	if err != nil {
+		return err
+	}
 
 	// 3. Initialize deployment progress
 	record.Progress = DeploymentProgress{

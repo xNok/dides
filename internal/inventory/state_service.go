@@ -33,7 +33,7 @@ func (s *StateService) UpdateDesiredState(instanceKey string, state State) error
 }
 
 // CountByLabels returns the count of instances matching the given labels
-func (s *StateService) CountByLabels(labels map[string]string) int {
+func (s *StateService) CountByLabels(labels map[string]string) (int, error) {
 	return s.store.CountByLabels(labels)
 }
 

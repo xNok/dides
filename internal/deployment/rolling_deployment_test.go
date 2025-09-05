@@ -94,7 +94,7 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		}
 
 		// Mock expectations
-		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(5).Times(1)
+		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(5, nil).Times(1)
 		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).Return([]*inventory.Instance{}, nil).Times(1)
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			// Verify the deployment is marked as completed
@@ -139,7 +139,7 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		}
 
 		// Mock expectations
-		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(10).Times(1)
+		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(10, nil).Times(1)
 		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).Return(instances, nil).Times(1)
 		mockInventory.EXPECT().UpdateDesiredState("instance-1", desiredState).Return(nil).Times(1)
 		mockInventory.EXPECT().UpdateDesiredState("instance-2", desiredState).Return(nil).Times(1)
@@ -157,6 +157,25 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		err := rollingDeployment.StartDeployment(record)
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
+		}
+	})
+
+	// Test case: CountByLabels error
+	t.Run("count_by_labels_error", func(t *testing.T) {
+		record := &deployment.DeploymentRecord{
+			Request: deployment.DeploymentRequest{
+				CodeVersion:          "v1.0.0",
+				ConfigurationVersion: "config-v1.0",
+				Labels:               map[string]string{"env": "prod"},
+			},
+		}
+
+		countErr := errors.New("count error")
+		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(0, countErr).Times(1)
+
+		err := rollingDeployment.StartDeployment(record)
+		if err != countErr {
+			t.Errorf("Expected count error, got %v", err)
 		}
 	})
 }
@@ -265,7 +284,7 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		t.Log("Step 1: Starting deployment")
 
 		// Mock expectations for StartDeployment
-		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(5).Times(1)
+		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(5, nil).Times(1)
 		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).DoAndReturn(
 			func(labels map[string]string, state inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
 				// Return first 2 instances for the first batch

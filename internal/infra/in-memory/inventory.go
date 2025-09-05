@@ -175,7 +175,7 @@ func (s *InventoryStore) GetByLabels(labels map[string]string) []*inventory.Inst
 }
 
 // CountByLabels returns the count of instances matching the given labels
-func (s *InventoryStore) CountByLabels(labels map[string]string) int {
+func (s *InventoryStore) CountByLabels(labels map[string]string) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -186,7 +186,7 @@ func (s *InventoryStore) CountByLabels(labels map[string]string) int {
 		}
 	}
 
-	return count
+	return count, nil
 }
 
 // GetNeedingUpdate returns instances that match labels and need state updates

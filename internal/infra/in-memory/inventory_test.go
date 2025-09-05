@@ -290,19 +290,28 @@ func TestInventoryStore_CountByLabels(t *testing.T) {
 	store.Save(instance3)
 
 	// Test counting by single label
-	webCount := store.CountByLabels(map[string]string{"role": "web"})
+	webCount, err := store.CountByLabels(map[string]string{"role": "web"})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
 	if webCount != 2 {
 		t.Errorf("Expected 2 web instances, got %d", webCount)
 	}
 
 	// Test counting by multiple labels
-	prodWebCount := store.CountByLabels(map[string]string{"role": "web", "env": "prod"})
+	prodWebCount, err := store.CountByLabels(map[string]string{"role": "web", "env": "prod"})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
 	if prodWebCount != 1 {
 		t.Errorf("Expected 1 prod web instance, got %d", prodWebCount)
 	}
 
 	// Test counting with no matches
-	noMatchCount := store.CountByLabels(map[string]string{"role": "cache"})
+	noMatchCount, err := store.CountByLabels(map[string]string{"role": "cache"})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
 	if noMatchCount != 0 {
 		t.Errorf("Expected 0 cache instances, got %d", noMatchCount)
 	}

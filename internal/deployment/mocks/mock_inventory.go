@@ -35,11 +35,12 @@ func (m *MockInventoryService) EXPECT() *MockInventoryServiceMockRecorder {
 }
 
 // CountByLabels mocks base method.
-func (m *MockInventoryService) CountByLabels(labels map[string]string) int {
+func (m *MockInventoryService) CountByLabels(labels map[string]string) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CountByLabels", labels)
 	ret0, _ := ret[0].(int)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // CountByLabels indicates an expected call of CountByLabels.

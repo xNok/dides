@@ -73,7 +73,7 @@ type Store interface {
 	Update(key string, patch InstancePatch) (*Instance, error)
 	GetAll() []*Instance
 	GetByLabels(labels map[string]string) []*Instance
-	CountByLabels(labels map[string]string) int
+	CountByLabels(labels map[string]string) (int, error)
 
 	// Search for update
 	GetNeedingUpdate(labels map[string]string, desiredState State, opts *GetNeedingUpdateOptions) ([]*Instance, error)
