@@ -260,6 +260,25 @@ func (s *InventoryStore) CountFailed(labels map[string]string, desiredState inve
 	return count, nil
 }
 
+// ResetFailedInstances resets the status of failed instances matching the labels to UNKNOWN
+func (s *InventoryStore) ResetFailedInstances(labels map[string]string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for key, instance := range s.instances {
+		if s.matchesLabels(instance, labels) && instance.Status == inventory.FAILED {
+			// Create a copy to modify
+			updated := *instance
+			updated.Status = inventory.UNKNOWN
+
+			// Update the stored instance
+			s.instances[key] = &updated
+		}
+	}
+
+	return nil
+}
+
 // CountInProgress returns the count of instances that match labels and are currently being updated
 // (desiredState == targetState but currentState != desiredState)
 func (s *InventoryStore) CountInProgress(labels map[string]string, desiredState inventory.State) (int, error) {

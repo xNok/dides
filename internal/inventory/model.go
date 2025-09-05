@@ -85,4 +85,6 @@ type Store interface {
 	CountCompleted(labels map[string]string, desiredState State) (int, error)
 	// CountFailed returns the total number of instances that have failed the update to the desired state
 	CountFailed(labels map[string]string, desiredState State) (int, error)
+	// ResetFailedInstances resets the status of failed instances matching the labels to UNKNOWN
+	ResetFailedInstances(labels map[string]string) error
 }

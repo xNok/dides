@@ -32,6 +32,8 @@ type InventoryService interface {
 	CountCompleted(labels map[string]string, desiredState inventory.State) (int, error)
 	// CountFailed returns the total number of instances that have failed the update
 	CountFailed(labels map[string]string, desiredState inventory.State) (int, error)
+	// ResetFailedInstances resets the status of failed instances matching the labels to UNKNOWN
+	ResetFailedInstances(labels map[string]string) error
 }
 
 // NewRollingDeployment creates a new rolling deployment strategy
@@ -98,6 +100,11 @@ func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
 	return rd.store.Update(record)
 }
 
+// ResetFailedInstances resets the status of failed instances matching the labels to UNKNOWN
+func (rd *RollingDeployment) ResetFailedInstances(labels map[string]string) error {
+	return rd.inventory.ResetFailedInstances(labels)
+}
+
 // ProgressDeployment checks instance states and progresses the deployment
 func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *DeploymentRecord) (*DeploymentRecord, error) {
 	// 0. Determine desired state from the deployment request
@@ -136,13 +143,10 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	// State Update Logic
 	// ------------------------------------------------------
 
-	// 1. If failure threshold exceeded, trigger rollback
+	// 1. If failure threshold exceeded, return special error for automatic rollback handling
 	if failed >= record.Request.Configuration.FailureThreshold {
-		if err := rd.RollbackDeployment(record); err != nil {
-			return nil, err
-		}
 		record.Status = Failed
-		return record, rd.store.Update(record)
+		return record, ErrFailureThresholdExceeded
 	}
 
 	// 2. If there are still instances in progress, wait for them to complete
@@ -168,6 +172,7 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	}
 
 	// 5. Update the state for next batch
+	// TODO: Consider using UpdateMany such that it can be done in a transaction (so it can be rolled back)
 	for _, instance := range instances {
 		if err := rd.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
 			return record, err
@@ -176,13 +181,4 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	}
 
 	return record, rd.store.Update(record)
-}
-
-// RollbackDeployment reverts a failed deployment
-func (rd *RollingDeployment) RollbackDeployment(record *DeploymentRecord) error {
-	// TODO: Implement actual rollback logic
-	// 1. Cancel the current deployment
-	// 2. Trigger a new deployment to the previous version
-
-	return nil
 }

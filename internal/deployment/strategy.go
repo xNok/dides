@@ -10,6 +10,6 @@ type DeploymentStrategy interface {
 	// ProgressDeployment advances the deployment to the next stage
 	ProgressDeployment(ctx context.Context, record *DeploymentRecord) (*DeploymentRecord, error)
 
-	// RollbackDeployment reverts a failed deployment
-	RollbackDeployment(record *DeploymentRecord) error
+	// ResetFailedInstances resets the status of failed instances matching the labels to UNKNOWN
+	ResetFailedInstances(labels map[string]string) error
 }

@@ -24,6 +24,10 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 		CodeVersion:          "v1.2.3",
 		ConfigurationVersion: "config-v1.0",
 		Labels:               map[string]string{"env": "prod"},
+		Configuration: deployment.Configuration{
+			BatchSize:        2,
+			FailureThreshold: 1,
+		},
 	}
 
 	// Set expectations for locker
@@ -83,6 +87,10 @@ func TestTriggerService_TriggerDeployment_StoreError(t *testing.T) {
 	req := deployment.DeploymentRequest{
 		CodeVersion: "v1.0.0",
 		Labels:      map[string]string{"env": "test"},
+		Configuration: deployment.Configuration{
+			BatchSize:        2,
+			FailureThreshold: 1,
+		},
 	}
 
 	// Set expectations for locker
@@ -113,6 +121,10 @@ func TestTriggerService_TriggerDeployment_RolloutInProgress(t *testing.T) {
 	req := deployment.DeploymentRequest{
 		CodeVersion: "v1.0.0",
 		Labels:      map[string]string{"env": "test"},
+		Configuration: deployment.Configuration{
+			BatchSize:        2,
+			FailureThreshold: 1,
+		},
 	}
 
 	// Simulate a running deployment already exists
@@ -146,6 +158,10 @@ func TestTriggerService_TriggerDeployment_LockError(t *testing.T) {
 	req := deployment.DeploymentRequest{
 		CodeVersion: "v1.0.0",
 		Labels:      map[string]string{"env": "test"},
+		Configuration: deployment.Configuration{
+			BatchSize:        2,
+			FailureThreshold: 1,
+		},
 	}
 
 	// Lock should fail

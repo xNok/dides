@@ -61,3 +61,8 @@ func (s *StateService) CountFailed(labels map[string]string, desiredState State)
 func (s *StateService) CountInProgress(labels map[string]string, desiredState State) (int, error) {
 	return s.store.CountInProgress(labels, desiredState)
 }
+
+// ResetFailedInstances resets the status of failed instances matching the labels to UNKNOWN
+func (s *StateService) ResetFailedInstances(labels map[string]string) error {
+	return s.store.ResetFailedInstances(labels)
+}

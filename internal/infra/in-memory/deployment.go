@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -51,10 +52,16 @@ func (s *DeploymentStore) Save(record *deployment.DeploymentRecord) error {
 	}
 
 	now := time.Now()
+
+	// Set CreatedAt if not already set
+	if record.CreatedAt.IsZero() {
+		record.CreatedAt = now
+	}
+
 	entry := &deploymentEntry{
 		ID:        record.ID,
 		Record:    record,
-		CreatedAt: now,
+		CreatedAt: record.CreatedAt,
 		UpdatedAt: now,
 	}
 
@@ -167,6 +174,28 @@ func (s *DeploymentStore) GetByLabels(labels map[string]string) []*deployment.De
 	}
 
 	return matches
+}
+
+// GetByLabelsAndStatus returns deployments that match all provided labels and have the specified status
+// Results are sorted by creation time in descending order (most recent first)
+func (s *DeploymentStore) GetByLabelsAndStatus(labels map[string]string, status deployment.DeploymentStatus) ([]*deployment.DeploymentRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var matches []*deployment.DeploymentRecord
+	for _, entry := range s.deployments {
+		if entry.Record.Status == status && s.matchesLabels(entry, labels) {
+			recordCopy := *entry.Record
+			matches = append(matches, &recordCopy)
+		}
+	}
+
+	// Sort by creation time in descending order (most recent first)
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].CreatedAt.After(matches[j].CreatedAt)
+	})
+
+	return matches, nil
 }
 
 // UpdateStatus updates the status of a deployment

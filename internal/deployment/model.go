@@ -1,5 +1,7 @@
 package deployment
 
+import "time"
+
 type DeploymentStatus int
 
 const (
@@ -29,9 +31,10 @@ type Configuration struct {
 
 // DeploymentRecord represents an record for the deployment history
 type DeploymentRecord struct {
-	ID      string            `json:"id"`
-	Request DeploymentRequest `json:"request"`
-	Status  DeploymentStatus  `json:"status"`
+	ID        string            `json:"id"`
+	Request   DeploymentRequest `json:"request"`
+	Status    DeploymentStatus  `json:"status"`
+	CreatedAt time.Time         `json:"created_at"`
 	// Progress tracking for rolling deployments
 	Progress DeploymentProgress `json:"progress"`
 }

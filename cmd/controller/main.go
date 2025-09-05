@@ -68,6 +68,8 @@ func setupRouter() *chi.Mux {
 		r.Get("/status", deploymentStatus)
 		// force the deployment to progress (mostly for testing)
 		r.Post("/progress", deploymentProgress)
+		// Trigger a rollback to previous deployment
+		r.Post("/rollback", deploymentRollback)
 	})
 
 	return r
@@ -253,5 +255,50 @@ func deploymentProgress(w http.ResponseWriter, r *http.Request) {
 	// Return updated status
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// deploymentRollback triggers a rollback to the previous successful deployment
+func deploymentRollback(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Define the rollback request structure
+	var req struct {
+		Labels        map[string]string        `json:"labels"`
+		Configuration deployment.Configuration `json:"configuration"`
+	}
+
+	// Parse the request body
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Trigger the rollback using the trigger service
+	err := triggerService.TriggerRollback(ctx, req.Labels, req.Configuration)
+	if err != nil {
+		if errors.Is(err, deployment.ErrRolloutInProgress) {
+			http.Error(w, "Deployment is already in progress", http.StatusConflict)
+			return
+		}
+		if errors.Is(err, deployment.ErrNoPreviousDeploymentFound) {
+			http.Error(w, "No previous successful deployment found for rollback", http.StatusNotFound)
+			return
+		}
+
+		http.Error(w, "Failed to trigger rollback", http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	response := map[string]interface{}{
+		"message": "Rollback triggered successfully",
+		"labels":  req.Labels,
+		"config":  req.Configuration,
+	}
+
 	json.NewEncoder(w).Encode(response)
 }

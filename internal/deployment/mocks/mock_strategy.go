@@ -50,18 +50,18 @@ func (mr *MockDeploymentStrategyMockRecorder) ProgressDeployment(ctx, record int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProgressDeployment", reflect.TypeOf((*MockDeploymentStrategy)(nil).ProgressDeployment), ctx, record)
 }
 
-// RollbackDeployment mocks base method.
-func (m *MockDeploymentStrategy) RollbackDeployment(record *deployment.DeploymentRecord) error {
+// ResetFailedInstances mocks base method.
+func (m *MockDeploymentStrategy) ResetFailedInstances(labels map[string]string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackDeployment", record)
+	ret := m.ctrl.Call(m, "ResetFailedInstances", labels)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// RollbackDeployment indicates an expected call of RollbackDeployment.
-func (mr *MockDeploymentStrategyMockRecorder) RollbackDeployment(record interface{}) *gomock.Call {
+// ResetFailedInstances indicates an expected call of ResetFailedInstances.
+func (mr *MockDeploymentStrategyMockRecorder) ResetFailedInstances(labels interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackDeployment", reflect.TypeOf((*MockDeploymentStrategy)(nil).RollbackDeployment), record)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetFailedInstances", reflect.TypeOf((*MockDeploymentStrategy)(nil).ResetFailedInstances), labels)
 }
 
 // StartDeployment mocks base method.

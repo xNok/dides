@@ -209,6 +209,42 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 		FailedInstances:     1,
 	}, progress.Progress)
 
+	// 13. Deployment is failed - a rollback should have been triggered automatically
+	time.Sleep(100 * time.Millisecond)
+	
+	deployments, deploymentResp = testUtils.GetAllDeployments(t)
+	assert.Equal(t, http.StatusOK, deploymentResp.StatusCode)
+	assert.Equal(t, 1, deployments.Count) // The rollback deployment
+	assert.Equal(t, "v2.0.0", deployments.Deployments[0].Request.CodeVersion) // Rollback to previous version
+
+	t.Logf("Successfully triggered automatic rollback to version %s", deployments.Deployments[0].Request.CodeVersion)
+
+	// 14. Progress the rollback deployment
+	time.Sleep(100 * time.Millisecond)
+	progress, progressResp = testUtils.ProgressDeployment(t)
+	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
+	assert.Equal(t, deployment.Running, progress.Status)
+
+	updatedInstances = testUtils.GetAllInstances(t)
+	inflight = getInflightInstances(updatedInstances, "v2.0.0")
+	assert.Equal(t, 2, len(inflight))
+
+	// 15. instance report their status
+	for i := range inflight {
+		testUtils.UpdateInstance(t, inflight[i], testData.CreateHealthyUpdate("v2.0.0", "config-v2"))
+	}
+
+	// 15.1 Progress the deployment to the next step
+	progress, progressResp = testUtils.ProgressDeployment(t)
+	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
+	assert.Equal(t, deployment.Running, progress.Status)
+	assert.Equal(t, deployment.DeploymentProgress{
+		TotalInstances:      2,
+		CompletedInstances:  3,
+		InProgressInstances: 0,
+		FailedInstances:     0,
+	}, progress.Progress)
+
 }
 
 func getInflightInstances(instances []*inventory.Instance, targetVersion string) []string {

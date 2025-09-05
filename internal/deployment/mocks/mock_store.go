@@ -35,6 +35,21 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
+// GetByLabelsAndStatus mocks base method.
+func (m *MockStore) GetByLabelsAndStatus(labels map[string]string, status deployment.DeploymentStatus) ([]*deployment.DeploymentRecord, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByLabelsAndStatus", labels, status)
+	ret0, _ := ret[0].([]*deployment.DeploymentRecord)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByLabelsAndStatus indicates an expected call of GetByLabelsAndStatus.
+func (mr *MockStoreMockRecorder) GetByLabelsAndStatus(labels, status interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByLabelsAndStatus", reflect.TypeOf((*MockStore)(nil).GetByLabelsAndStatus), labels, status)
+}
+
 // GetByStatus mocks base method.
 func (m *MockStore) GetByStatus(status deployment.DeploymentStatus) ([]*deployment.DeploymentRecord, error) {
 	m.ctrl.T.Helper()

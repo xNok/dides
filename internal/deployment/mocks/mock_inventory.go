@@ -138,6 +138,20 @@ func (mr *MockInventoryServiceMockRecorder) GetNeedingUpdate(labels, desiredStat
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNeedingUpdate", reflect.TypeOf((*MockInventoryService)(nil).GetNeedingUpdate), labels, desiredState, opts)
 }
 
+// ResetFailedInstances mocks base method.
+func (m *MockInventoryService) ResetFailedInstances(labels map[string]string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetFailedInstances", labels)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ResetFailedInstances indicates an expected call of ResetFailedInstances.
+func (mr *MockInventoryServiceMockRecorder) ResetFailedInstances(labels interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetFailedInstances", reflect.TypeOf((*MockInventoryService)(nil).ResetFailedInstances), labels)
+}
+
 // UpdateDesiredState mocks base method.
 func (m *MockInventoryService) UpdateDesiredState(instanceKey string, state inventory.State) error {
 	m.ctrl.T.Helper()

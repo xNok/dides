@@ -465,3 +465,83 @@ func TestInventoryStore_CountNeedingUpdate(t *testing.T) {
 		t.Errorf("Expected 1 web instance needing update, got %d", count)
 	}
 }
+
+func TestInventoryStore_ResetFailedInstances(t *testing.T) {
+	store := NewInventoryStore()
+
+	// Create instances with different statuses
+	instance1 := &inventory.Instance{
+		IP:     "192.168.1.1",
+		Name:   "instance1",
+		Labels: map[string]string{"env": "prod", "service": "api"},
+		Status: inventory.FAILED, // This should be reset
+		CurrentState: inventory.State{
+			CodeVersion:          "v1.0.0",
+			ConfigurationVersion: "config-v1.0",
+		},
+		DesiredState: inventory.State{
+			CodeVersion:          "v2.0.0",
+			ConfigurationVersion: "config-v2.0",
+		},
+	}
+
+	instance2 := &inventory.Instance{
+		IP:     "192.168.1.2",
+		Name:   "instance2",
+		Labels: map[string]string{"env": "prod", "service": "api"},
+		Status: inventory.HEALTHY, // This should not be changed
+		CurrentState: inventory.State{
+			CodeVersion:          "v2.0.0",
+			ConfigurationVersion: "config-v2.0",
+		},
+	}
+
+	instance3 := &inventory.Instance{
+		IP:     "192.168.1.3",
+		Name:   "instance3",
+		Labels: map[string]string{"env": "staging", "service": "api"},
+		Status: inventory.FAILED, // This should not be reset (different env)
+		CurrentState: inventory.State{
+			CodeVersion:          "v1.0.0",
+			ConfigurationVersion: "config-v1.0",
+		},
+	}
+
+	// Save all instances
+	store.Save(instance1)
+	store.Save(instance2)
+	store.Save(instance3)
+
+	// Reset failed instances for prod env
+	err := store.ResetFailedInstances(map[string]string{"env": "prod"})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Check that instance1 was reset to UNKNOWN
+	updated1, exists := store.Get("instance1")
+	if !exists {
+		t.Fatal("Expected instance1 to exist")
+	}
+	if updated1.Status != inventory.UNKNOWN {
+		t.Errorf("Expected instance1 status to be UNKNOWN, got %v", updated1.Status)
+	}
+
+	// Check that instance2 remains HEALTHY
+	updated2, exists := store.Get("instance2")
+	if !exists {
+		t.Fatal("Expected instance2 to exist")
+	}
+	if updated2.Status != inventory.HEALTHY {
+		t.Errorf("Expected instance2 status to remain HEALTHY, got %v", updated2.Status)
+	}
+
+	// Check that instance3 remains FAILED (different env)
+	updated3, exists := store.Get("instance3")
+	if !exists {
+		t.Fatal("Expected instance3 to exist")
+	}
+	if updated3.Status != inventory.FAILED {
+		t.Errorf("Expected instance3 status to remain FAILED, got %v", updated3.Status)
+	}
+}

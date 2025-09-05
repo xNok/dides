@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 const (
@@ -17,12 +18,15 @@ var (
 	ErrRolloutInProgress             = errors.New("deployment rollout in progress")
 	ErrDeploymentNotFound            = errors.New("deployment not found")
 	ErrMoreThanOneInflightDeployment = errors.New("more than one inflight deployment found")
+	ErrNoPreviousDeploymentFound     = errors.New("no previous successful deployment found for rollback")
+	ErrFailureThresholdExceeded      = errors.New("deployment failure threshold exceeded")
 )
 
 type Store interface {
 	Save(req *DeploymentRecord) error
 	GetByStatus(status DeploymentStatus) ([]*DeploymentRecord, error)
 	Update(record *DeploymentRecord) error
+	GetByLabelsAndStatus(labels map[string]string, status DeploymentStatus) ([]*DeploymentRecord, error)
 }
 
 type Locker interface {
@@ -50,6 +54,15 @@ func (r DeploymentRequest) Validate() error {
 	if r.CodeVersion == "" {
 		return ErrInvalidDeploymentRequest
 	}
+
+	if r.Configuration.BatchSize <= 0 {
+		return ErrInvalidDeploymentRequest
+	}
+
+	if r.Configuration.FailureThreshold < 0 {
+		return ErrInvalidDeploymentRequest
+	}
+
 	return nil
 }
 
@@ -59,7 +72,7 @@ func (s *TriggerService) TriggerDeployment(ctx context.Context, req *DeploymentR
 		return err
 	}
 
-	// Concurency check we need a lock here in case two or more requests has arrived
+	// Concurrency check we need a lock here in case two or more requests has arrived
 	if err := s.lock.Lock(ctx, lockKey); err != nil {
 		return err
 	}
@@ -88,6 +101,7 @@ func (s *TriggerService) TriggerDeployment(ctx context.Context, req *DeploymentR
 	return nil
 }
 
+// isRolloutInProgress checks if any deployment is currently running
 func (s *TriggerService) isRolloutInProgress() bool {
 	runningDeployments, err := s.store.GetByStatus(Running)
 	if err != nil {
@@ -124,5 +138,102 @@ func (s *TriggerService) ProgressDeployment(ctx context.Context) (*DeploymentRec
 	}
 
 	// 2. Use the strategy to progress the deployment
-	return s.strategy.ProgressDeployment(ctx, records[0])
+	updatedRecord, err := s.strategy.ProgressDeployment(ctx, records[0])
+	if err != nil {
+		// Check if failure threshold was exceeded in which case we trigger automatic rollback
+		if errors.Is(err, ErrFailureThresholdExceeded) {
+			// Mark the current deployment as failed
+			updatedRecord.Status = Failed
+			if updateErr := s.store.Update(updatedRecord); updateErr != nil {
+				return updatedRecord, updateErr
+			}
+
+			// Trigger automatic rollback deployment without acquiring locks (we already have them)
+			if rollbackErr := s.createRollbackDeployment(ctx, updatedRecord.Request.Labels, updatedRecord.Request.Configuration); rollbackErr != nil {
+				// If rollback fails, just return the original error
+				return updatedRecord, err
+			}
+
+			return updatedRecord, nil
+		}
+		return updatedRecord, err
+	}
+
+	return updatedRecord, nil
+}
+
+// TriggerRollback creates a new deployment that rolls back to the previous successful deployment
+// Rollback has priority - if a deployment is in progress, it will be cancelled
+func (s *TriggerService) TriggerRollback(ctx context.Context, labels map[string]string, config Configuration) error {
+	// Concurrency check - we need a lock here in case requests arrive simultaneously
+	if err := s.lock.Lock(ctx, lockKey); err != nil {
+		return err
+	}
+	defer s.lock.Unlock(ctx, lockKey)
+
+	return s.createRollbackDeployment(ctx, labels, config)
+}
+
+// createRollbackDeployment creates a rollback deployment without acquiring locks (for internal use)
+// Rollback has priority - if a deployment is in progress, it will be cancelled
+func (s *TriggerService) createRollbackDeployment(ctx context.Context, labels map[string]string, config Configuration) error {
+	// 1. Cancel any deployment currently in progress (rollback has priority)
+	if s.isRolloutInProgress() {
+		runningDeployments, err := s.store.GetByStatus(Running)
+		if err != nil {
+			return err
+		}
+
+		// Cancel all running deployments
+		for _, deployment := range runningDeployments {
+			deployment.Status = Failed
+			if err := s.store.Update(deployment); err != nil {
+				return err
+			}
+		}
+	}
+
+	// 2. Reset failed instances before starting rollback
+	if err := s.strategy.ResetFailedInstances(labels); err != nil {
+		return fmt.Errorf("failed to reset failed instances: %w", err)
+	}
+
+	// 2. Find the most recent completed deployment with the same labels
+	previousDeployments, err := s.store.GetByLabelsAndStatus(labels, Completed)
+	if err != nil {
+		return err
+	}
+
+	if len(previousDeployments) == 0 {
+		return ErrNoPreviousDeploymentFound
+	}
+
+	// 3. Get the most recent completed deployment (first in the sorted list)
+	previousDeployment := previousDeployments[0]
+
+	// 4. Create a rollback deployment request
+	rollbackRequest := &DeploymentRequest{
+		CodeVersion:          previousDeployment.Request.CodeVersion,
+		ConfigurationVersion: previousDeployment.Request.ConfigurationVersion,
+		Labels:               labels,
+		Configuration:        config,
+	}
+
+	// 5. Validate the rollback request
+	if err := rollbackRequest.Validate(); err != nil {
+		return err
+	}
+
+	// 6. Save the deployment record
+	record := &DeploymentRecord{
+		ID:      "", // Will be generated by the store
+		Request: *rollbackRequest,
+		Status:  Running,
+	}
+	if err := s.store.Save(record); err != nil {
+		return err
+	}
+
+	// 7. Start the rollback deployment using the strategy
+	return s.strategy.StartDeployment(record)
 }
