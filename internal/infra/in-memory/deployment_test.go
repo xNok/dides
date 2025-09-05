@@ -15,7 +15,12 @@ func TestDeploymentStore_Save(t *testing.T) {
 		Labels:               map[string]string{"env": "prod", "app": "web"},
 	}
 
-	err := store.Save(&req)
+	record := &deployment.DeploymentRecord{
+		Request: req,
+		Status:  deployment.Running,
+	}
+
+	err := store.Save(record)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -57,7 +62,12 @@ func TestDeploymentStore_Get(t *testing.T) {
 		Labels:      map[string]string{"env": "test"},
 	}
 
-	err := store.Save(&req)
+	record := &deployment.DeploymentRecord{
+		Request: req,
+		Status:  deployment.Running,
+	}
+
+	err := store.Save(record)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -95,9 +105,13 @@ func TestDeploymentStore_GetByStatus(t *testing.T) {
 	req2 := deployment.DeploymentRequest{CodeVersion: "v1.1.0"}
 	req3 := deployment.DeploymentRequest{CodeVersion: "v1.2.0"}
 
-	store.Save(&req1)
-	store.Save(&req2)
-	store.Save(&req3)
+	record1 := &deployment.DeploymentRecord{Request: req1, Status: deployment.Running}
+	record2 := &deployment.DeploymentRecord{Request: req2, Status: deployment.Running}
+	record3 := &deployment.DeploymentRecord{Request: req3, Status: deployment.Running}
+
+	store.Save(record1)
+	store.Save(record2)
+	store.Save(record3)
 
 	// All should be Pending initially
 	pending, err := store.GetByStatus(deployment.Running)
@@ -152,9 +166,13 @@ func TestDeploymentStore_GetByLabels(t *testing.T) {
 		Labels:      map[string]string{"env": "prod", "app": "api"},
 	}
 
-	store.Save(&req1)
-	store.Save(&req2)
-	store.Save(&req3)
+	record1 := &deployment.DeploymentRecord{Request: req1, Status: deployment.Running}
+	record2 := &deployment.DeploymentRecord{Request: req2, Status: deployment.Running}
+	record3 := &deployment.DeploymentRecord{Request: req3, Status: deployment.Running}
+
+	store.Save(record1)
+	store.Save(record2)
+	store.Save(record3)
 
 	// Find by single label
 	webDeployments := store.GetByLabels(map[string]string{"app": "web"})
@@ -177,7 +195,8 @@ func TestDeploymentStore_UpdateStatus(t *testing.T) {
 	store := NewDeploymentStore()
 
 	req := deployment.DeploymentRequest{CodeVersion: "v1.0.0"}
-	store.Save(&req)
+	record := &deployment.DeploymentRecord{Request: req, Status: deployment.Running}
+	store.Save(record)
 
 	deployments := store.GetAll()
 	deploymentID := deployments[0].ID
@@ -209,7 +228,8 @@ func TestDeploymentStore_Delete(t *testing.T) {
 	store := NewDeploymentStore()
 
 	req := deployment.DeploymentRequest{CodeVersion: "v1.0.0"}
-	store.Save(&req)
+	record := &deployment.DeploymentRecord{Request: req, Status: deployment.Running}
+	store.Save(record)
 
 	if store.Count() != 1 {
 		t.Fatalf("Expected 1 deployment, got %d", store.Count())

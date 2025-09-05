@@ -59,7 +59,21 @@ POST /deploy
     "env": "production"
   },
   "condiguration": {
-    "max_inflight": 2
+    "batch_size": 2,
+    "failure_threshold": 1,
   }
 }
 ```
+
+The system only accept one in flight deployment at the time.
+
+## Deployment Process (after a trigger)
+
+Once a deployment is trigger the coordinatoor update the desired state (`code_version`, `configuration_version`) for up to `max_inflight` instances and motior the progress of the deployment with the instances heartbeat.
+
+Once 1 instance report `HEALTHY` and `code_version == target_code_version` then the deployment progress by updating the `target_code_version` for one of the remaining instances.
+
+In the best case scenario all intances eventualled report `HEALTHY` and `code_version == target_code_version`. Then the eployment status is marked as completed.
+
+Failure scenarios:
+* 

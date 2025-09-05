@@ -18,7 +18,7 @@ var (
 )
 
 type Store interface {
-	Save(req *DeploymentRequest) error
+	Save(req *DeploymentRecord) error
 	GetByStatus(status DeploymentStatus) ([]*DeploymentRecord, error)
 }
 
@@ -65,13 +65,16 @@ func (s *TriggerService) TriggerDeployment(ctx context.Context, req *DeploymentR
 		return ErrRolloutInProgress
 	}
 
-	// 2. Save the deployment request
-	if err := s.store.Save(req); err != nil {
+	// 2. Save the deployment record
+	record := &DeploymentRecord{
+		Request: *req,
+		Status:  Running,
+	}
+	if err := s.store.Save(record); err != nil {
 		return err
 	}
 
 	// 3. trigger the deployment
-
 
 	return nil
 }

@@ -40,8 +40,8 @@ func NewDeploymentStore() *DeploymentStore {
 	}
 }
 
-// Save stores a deployment request in memory and returns the deployment ID
-func (s *DeploymentStore) Save(req *deployment.DeploymentRequest) error {
+// Save stores a deployment record in memory and returns the deployment ID
+func (s *DeploymentStore) Save(record *deployment.DeploymentRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -50,11 +50,8 @@ func (s *DeploymentStore) Save(req *deployment.DeploymentRequest) error {
 
 	now := time.Now()
 	entry := &deploymentEntry{
-		ID: id,
-		Record: &deployment.DeploymentRecord{
-			Request: *req,
-			Status:  deployment.Running,
-		},
+		ID:        id,
+		Record:    record,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

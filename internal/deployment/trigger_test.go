@@ -31,8 +31,12 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 
 	// Set expectations: GetByStatus should be called to check for running deployments
 	mockStore.EXPECT().GetByStatus(deployment.Running).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
-	// Save should be called once with the request and return nil
-	mockStore.EXPECT().Save(&req).Return(nil).Times(1)
+	// Save should be called once with a deployment record and return nil
+	expectedRecord := &deployment.DeploymentRecord{
+		Request: req,
+		Status:  deployment.Running,
+	}
+	mockStore.EXPECT().Save(expectedRecord).Return(nil).Times(1)
 
 	err := service.TriggerDeployment(ctx, &req)
 	if err != nil {
@@ -83,7 +87,11 @@ func TestTriggerService_TriggerDeployment_StoreError(t *testing.T) {
 	// Set expectations: GetByStatus should be called to check for running deployments
 	mockStore.EXPECT().GetByStatus(deployment.Running).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
 	// Save should be called and return an error
-	mockStore.EXPECT().Save(&req).Return(deployment.ErrInvalidDeploymentRequest).Times(1)
+	expectedRecord := &deployment.DeploymentRecord{
+		Request: req,
+		Status:  deployment.Running,
+	}
+	mockStore.EXPECT().Save(expectedRecord).Return(deployment.ErrInvalidDeploymentRequest).Times(1)
 
 	err := service.TriggerDeployment(ctx, &req)
 	if err != deployment.ErrInvalidDeploymentRequest {

@@ -51,7 +51,7 @@ func (mr *MockStoreMockRecorder) GetByStatus(status interface{}) *gomock.Call {
 }
 
 // Save mocks base method.
-func (m *MockStore) Save(req *deployment.DeploymentRequest) error {
+func (m *MockStore) Save(req *deployment.DeploymentRecord) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Save", req)
 	ret0, _ := ret[0].(error)
