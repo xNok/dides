@@ -45,6 +45,8 @@ func setupRouter() *chi.Mux {
 
 	// Inventory manages the list of instances
 	r.Route("/inventory", func(r chi.Router) {
+		// List all instances
+		r.Get("/instances", listInstances)
 		// Register an instance to the system
 		r.Post("/instances/register", registerInstance)
 		// Instance status update - typically instance health-check reporting
@@ -57,6 +59,27 @@ func setupRouter() *chi.Mux {
 	})
 
 	return r
+}
+
+// listInstances returns all instances in the inventory
+func listInstances(w http.ResponseWriter, r *http.Request) {
+	// Get all instances using the registration service
+	instances, err := registrationService.ListAllInstances()
+	if err != nil {
+		http.Error(w, "Failed to retrieve instances", http.StatusInternalServerError)
+		return
+	}
+
+	// Create response
+	response := inventory.ListResponse{
+		Instances: instances,
+		Count:     len(instances),
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
 // registerInstance adds an instance to the inventory

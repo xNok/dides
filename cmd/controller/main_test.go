@@ -43,14 +43,24 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 
 	// Create test utilities
 	testUtils := simulator.NewTestUtilities(server, config)
+	testData := simulator.NewTestDataGenerator()
 
 	// 1. Register all instances using the utility
 	registeredNames := testUtils.RegisterAllInstances(t, "test-token")
-
 	t.Logf("Successfully registered %d instances from config: %v", len(registeredNames), registeredNames)
+	instances := testUtils.GetAllInstances(t)
+	if len(instances) != len(registeredNames) {
+		t.Fatalf("Expected %d instances, got %d", len(registeredNames), len(instances))
+	}
 
-	// 2. Simulate the instances sending updated
 
+	// 2. Simulate the instances sending updates
+	for i := range registeredNames {
+		testUtils.UpdateInstance(t, registeredNames[i], testData.CreateHealthyUpdate("v1.0.0", "config-v1"))
+	}
 
-	// 3. trigger a deployment
+	// 3. Validate we can retrieve all instances
+	
+
+	// 4. trigger a deployment
 }

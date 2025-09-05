@@ -23,6 +23,10 @@ type Instance struct {
 	LastPing time.Time
 	// Status represent the health check status of the instance
 	Status Status
+	// CodeVersion is the version of the code running on the instance
+	CodeVersion string
+	// ConfigurationVersion is the version of the configuration applied to the instance
+	ConfigurationVersion string
 }
 
 // RegistrationRequest represents the request body for instance registration
@@ -33,12 +37,21 @@ type RegistrationRequest struct {
 
 // InstancePatch represents partial updates to an instance, not all fields are updatable
 type InstancePatch struct {
-	Labels   map[string]string `json:"labels,omitempty"`
-	LastPing *time.Time        `json:"last_ping,omitempty"`
-	Status   *Status           `json:"status,omitempty"`
+	Labels               map[string]string `json:"labels,omitempty"`
+	LastPing             *time.Time        `json:"last_ping,omitempty"`
+	Status               *Status           `json:"status,omitempty"`
+	CodeVersion          *string           `json:"code_version,omitempty"`
+	ConfigurationVersion *string           `json:"configuration_version,omitempty"`
+}
+
+// ListResponse represents the response for listing instances
+type ListResponse struct {
+	Instances []*Instance `json:"instances"`
+	Count     int         `json:"count"`
 }
 
 type Store interface {
 	Save(instance *Instance) error
 	Update(key string, patch InstancePatch) (*Instance, error)
+	GetAll() []*Instance
 }

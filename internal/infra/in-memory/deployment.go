@@ -18,11 +18,11 @@ type deploymentEntry struct {
 
 // DeploymentRecordWithID extends deployment.DeploymentRecord with ID and timestamps
 type DeploymentRecordWithID struct {
-	ID        string                      `json:"id"`
+	ID        string                       `json:"id"`
 	Request   deployment.DeploymentRequest `json:"request"`
-	Status    deployment.DeploymentStatus `json:"status"`
-	CreatedAt time.Time                   `json:"created_at"`
-	UpdatedAt time.Time                   `json:"updated_at"`
+	Status    deployment.DeploymentStatus  `json:"status"`
+	CreatedAt time.Time                    `json:"created_at"`
+	UpdatedAt time.Time                    `json:"updated_at"`
 }
 
 // DeploymentStore is an in-memory implementation of the deployment.Store interface

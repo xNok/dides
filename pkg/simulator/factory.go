@@ -117,20 +117,32 @@ func (tdg *TestDataGenerator) CreateUpdatePatch(status *inventory.Status, labels
 	}
 }
 
-// CreateHealthyStatus returns a pointer to HEALTHY status
-func (tdg *TestDataGenerator) CreateHealthyStatus() *inventory.Status {
+// CreateHealthyUpdate creates an InstancePatch with HEALTHY status and version information
+func (tdg *TestDataGenerator) CreateHealthyUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
 	status := inventory.HEALTHY
-	return &status
+	return inventory.InstancePatch{
+		Status:               &status,
+		CodeVersion:          &codeVersion,
+		ConfigurationVersion: &configurationVersion,
+	}
 }
 
-// CreateDegradedStatus returns a pointer to DEGRADED status
-func (tdg *TestDataGenerator) CreateDegradedStatus() *inventory.Status {
+// CreateDegradedUpdate creates an InstancePatch with DEGRADED status and version information
+func (tdg *TestDataGenerator) CreateDegradedUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
 	status := inventory.DEGRADED
-	return &status
+	return inventory.InstancePatch{
+		Status:               &status,
+		CodeVersion:          &codeVersion,
+		ConfigurationVersion: &configurationVersion,
+	}
 }
 
-// CreateFailedStatus returns a pointer to FAILED status
-func (tdg *TestDataGenerator) CreateFailedStatus() *inventory.Status {
+// CreateFailedUpdate creates an InstancePatch with FAILED status and version information
+func (tdg *TestDataGenerator) CreateFailedUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
 	status := inventory.FAILED
-	return &status
+	return inventory.InstancePatch{
+		Status:               &status,
+		CodeVersion:          &codeVersion,
+		ConfigurationVersion: &configurationVersion,
+	}
 }

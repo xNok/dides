@@ -41,3 +41,9 @@ func (s *RegistrationService) RegisterInstance(req RegistrationRequest) (*Instan
 
 	return &req.Instance, nil
 }
+
+// ListAllInstances returns all registered instances
+func (s *RegistrationService) ListAllInstances() ([]*Instance, error) {
+	instances := s.store.GetAll()
+	return instances, nil
+}

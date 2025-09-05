@@ -126,6 +126,30 @@ func (tu *TestUtilities) UpdateInstance(t *testing.T, instanceName string, updat
 	return resp
 }
 
+// GetAllInstances retrieves all instances from the inventory
+func (tu *TestUtilities) GetAllInstances(t *testing.T) []*inventory.Instance {
+	t.Helper()
+
+	resp, err := http.Get(tu.Server.URL + "/inventory/instances")
+	if err != nil {
+		t.Fatalf("Failed to get instances: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status %d, got %d. Body: %s",
+			http.StatusOK, resp.StatusCode, string(body))
+	}
+
+	var response inventory.ListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	return response.Instances
+}
+
 // MakeHTTPRequest is a generic helper for making HTTP requests
 func (tu *TestUtilities) MakeHTTPRequest(t *testing.T, method, path string, body interface{}) *http.Response {
 	t.Helper()
