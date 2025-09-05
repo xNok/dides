@@ -8,6 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/xnok/dides/internal/deployment"
 	"github.com/xnok/dides/internal/deployment/mocks"
+	"github.com/xnok/dides/internal/inventory"
 )
 
 func TestTriggerService_TriggerDeployment(t *testing.T) {
@@ -16,7 +17,8 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker)
+	mockInventory := mocks.NewMockInventoryService(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{
@@ -32,11 +34,14 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 	// Set expectations: GetByStatus should be called to check for running deployments
 	mockStore.EXPECT().GetByStatus(deployment.Running).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
 	// Save should be called once with a deployment record and return nil
-	expectedRecord := &deployment.DeploymentRecord{
-		Request: req,
-		Status:  deployment.Running,
-	}
-	mockStore.EXPECT().Save(expectedRecord).Return(nil).Times(1)
+	mockStore.EXPECT().Save(gomock.Any()).DoAndReturn(func(record *deployment.DeploymentRecord) error {
+		// Simulate ID assignment
+		record.ID = "deployment-001"
+		return nil
+	}).Times(1)
+	// Mock inventory service calls for startDeployment
+	mockInventory.EXPECT().GetInstancesByLabels(req.Labels).Return([]*inventory.Instance{}, nil).Times(1)
+	mockStore.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
 
 	err := service.TriggerDeployment(ctx, &req)
 	if err != nil {
@@ -50,7 +55,8 @@ func TestTriggerService_TriggerDeployment_EmptyCodeVersion(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker)
+	mockInventory := mocks.NewMockInventoryService(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{
@@ -72,7 +78,8 @@ func TestTriggerService_TriggerDeployment_StoreError(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker)
+	mockInventory := mocks.NewMockInventoryService(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{
@@ -87,11 +94,7 @@ func TestTriggerService_TriggerDeployment_StoreError(t *testing.T) {
 	// Set expectations: GetByStatus should be called to check for running deployments
 	mockStore.EXPECT().GetByStatus(deployment.Running).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
 	// Save should be called and return an error
-	expectedRecord := &deployment.DeploymentRecord{
-		Request: req,
-		Status:  deployment.Running,
-	}
-	mockStore.EXPECT().Save(expectedRecord).Return(deployment.ErrInvalidDeploymentRequest).Times(1)
+	mockStore.EXPECT().Save(gomock.Any()).Return(deployment.ErrInvalidDeploymentRequest).Times(1)
 
 	err := service.TriggerDeployment(ctx, &req)
 	if err != deployment.ErrInvalidDeploymentRequest {
@@ -105,7 +108,8 @@ func TestTriggerService_TriggerDeployment_RolloutInProgress(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker)
+	mockInventory := mocks.NewMockInventoryService(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{
@@ -137,7 +141,8 @@ func TestTriggerService_TriggerDeployment_LockError(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker)
+	mockInventory := mocks.NewMockInventoryService(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{

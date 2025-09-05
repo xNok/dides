@@ -130,9 +130,11 @@ func (tdg *TestDataGenerator) CreateUnknownUpdate() inventory.InstancePatch {
 func (tdg *TestDataGenerator) CreateHealthyUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
 	status := inventory.HEALTHY
 	return inventory.InstancePatch{
-		Status:               &status,
-		CodeVersion:          &codeVersion,
-		ConfigurationVersion: &configurationVersion,
+		Status: &status,
+		CurrentState: &inventory.State{
+			CodeVersion:          codeVersion,
+			ConfigurationVersion: configurationVersion,
+		},
 	}
 }
 
@@ -140,9 +142,11 @@ func (tdg *TestDataGenerator) CreateHealthyUpdate(codeVersion, configurationVers
 func (tdg *TestDataGenerator) CreateDegradedUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
 	status := inventory.DEGRADED
 	return inventory.InstancePatch{
-		Status:               &status,
-		CodeVersion:          &codeVersion,
-		ConfigurationVersion: &configurationVersion,
+		Status: &status,
+		CurrentState: &inventory.State{
+			CodeVersion:          codeVersion,
+			ConfigurationVersion: configurationVersion,
+		},
 	}
 }
 
@@ -150,9 +154,11 @@ func (tdg *TestDataGenerator) CreateDegradedUpdate(codeVersion, configurationVer
 func (tdg *TestDataGenerator) CreateFailedUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
 	status := inventory.FAILED
 	return inventory.InstancePatch{
-		Status:               &status,
-		CodeVersion:          &codeVersion,
-		ConfigurationVersion: &configurationVersion,
+		Status: &status,
+		CurrentState: &inventory.State{
+			CodeVersion:          codeVersion,
+			ConfigurationVersion: configurationVersion,
+		},
 	}
 }
 

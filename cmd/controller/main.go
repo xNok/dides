@@ -20,7 +20,7 @@ var (
 )
 
 func main() {
-	// Initialize the in-memory store and registration service
+	// Initialize the in-memory store and services
 	InventoryStore := inmemory.NewInventoryStore()
 	registrationService = inventory.NewRegistrationService(InventoryStore)
 	updateService = inventory.NewUpdateService(InventoryStore)
@@ -28,7 +28,8 @@ func main() {
 	// Initialize the deployment store and trigger service
 	deploymentStore := inmemory.NewDeploymentStore()
 	deploymentLock := inmemory.NewInMemoryLocker()
-	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock)
+	inventoryStateService := inventory.NewStateService(InventoryStore)
+	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock, inventoryStateService)
 
 	// Setup REST Router
 	r := setupRouter()
@@ -58,6 +59,10 @@ func setupRouter() *chi.Mux {
 	r.Route("/deploy", func(r chi.Router) {
 		// Trigger a deploment
 		r.Post("/", deployTrigger)
+		// Get all running deployments
+		r.Get("/status", deploymentStatus)
+		// force the deployment to progress (mostly for testing)
+		r.Post("/progress", deploymentProgress)
 	})
 
 	return r
@@ -149,13 +154,17 @@ func updateInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response
+	// Return the updated instance with desired state for the instance to act upon
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	response := map[string]interface{}{
-		"message":  "Instance updated successfully",
-		"instance": instance,
+		"message":       "Instance updated successfully",
+		"instance":      instance,
+		"desired_state": instance.DesiredState,
+		"current_state": instance.CurrentState,
+		"update_needed": instance.CurrentState.CodeVersion != instance.DesiredState.CodeVersion ||
+			instance.CurrentState.ConfigurationVersion != instance.DesiredState.ConfigurationVersion,
 	}
 
 	json.NewEncoder(w).Encode(response)
@@ -191,6 +200,52 @@ func deployTrigger(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"message": "Deployment triggered successfully",
 		"request": req,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// deploymentStatus returns the status and progress of a deployment
+func deploymentStatus(w http.ResponseWriter, r *http.Request) {
+	// Get all running deployments
+	deployments, err := triggerService.GetDeploymentStatus()
+	if err != nil {
+		http.Error(w, "Failed to get deployment status", http.StatusInternalServerError)
+		return
+	}
+
+	// Return deployment status
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"deployments": deployments,
+		"count":       len(deployments),
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// deploymentProgress manually progresses a deployment (normally done by background process)
+func deploymentProgress(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Progress the deployment
+	record, err := triggerService.ProgressDeployment(ctx)
+	if err != nil {
+		http.Error(w, "Failed to progress deployment", http.StatusInternalServerError)
+		return
+	}
+
+	// Return updated status
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]interface{}{
+		"message":    "Deployment progressed successfully",
+		"deployment": record,
+		"status":     record.Status,
+		"progress":   record.Progress,
 	}
 
 	json.NewEncoder(w).Encode(response)

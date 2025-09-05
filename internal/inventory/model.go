@@ -13,6 +13,9 @@ const (
 
 // Instance represent a server or workload manages by the system
 type Instance struct {
+	// ------------------------------------------------------
+	// Instance Metadata
+	// ------------------------------------------------------
 	// IP is the address of the server
 	IP string
 	// Name is the designation or host name of the server
@@ -20,12 +23,22 @@ type Instance struct {
 	// Labels are the key-value pairs associated with the server
 	Labels map[string]string
 	// LastPing is the timestamp when the instance first registered
+
+	// ------------------------------------------------------
+	// Instance State/Status
+	// ------------------------------------------------------
+	// LastPing is the timestamp when the instance last pinged the server
 	LastPing time.Time
 	// Status represent the health check status of the instance
 	Status Status
-	// CodeVersion is the version of the code running on the instance
-	CodeVersion string
-	// ConfigurationVersion is the version of the configuration applied to the instance
+
+	CurrentState State `json:"current_state"`
+	DesiredState State `json:"desired_state"`
+}
+
+// State represent the version deployed on the instance
+type State struct {
+	CodeVersion          string
 	ConfigurationVersion string
 }
 
@@ -37,11 +50,11 @@ type RegistrationRequest struct {
 
 // InstancePatch represents partial updates to an instance, not all fields are updatable
 type InstancePatch struct {
-	Labels               map[string]string `json:"labels,omitempty"`
-	LastPing             *time.Time        `json:"last_ping,omitempty"`
-	Status               *Status           `json:"status,omitempty"`
-	CodeVersion          *string           `json:"code_version,omitempty"`
-	ConfigurationVersion *string           `json:"configuration_version,omitempty"`
+	Labels       map[string]string `json:"labels,omitempty"`
+	LastPing     *time.Time        `json:"last_ping,omitempty"`
+	Status       *Status           `json:"status,omitempty"`
+	CurrentState *State            `json:"current_state,omitempty"`
+	DesiredState *State            `json:"desired_state,omitempty"`
 }
 
 // ListResponse represents the response for listing instances
@@ -54,4 +67,6 @@ type Store interface {
 	Save(instance *Instance) error
 	Update(key string, patch InstancePatch) (*Instance, error)
 	GetAll() []*Instance
+	GetByLabels(labels map[string]string) []*Instance
+	GetInstancesWithState(currentState, desiredState State) ([]*Instance, error)
 }

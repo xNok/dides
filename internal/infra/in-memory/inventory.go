@@ -75,6 +75,14 @@ func (s *InventoryStore) Update(key string, patch inventory.InstancePatch) (*inv
 		updated.Status = *patch.Status
 	}
 
+	if patch.CurrentState != nil {
+		updated.CurrentState = *patch.CurrentState
+	}
+
+	if patch.DesiredState != nil {
+		updated.DesiredState = *patch.DesiredState
+	}
+
 	// Update the stored instance
 	s.instances[key] = &updated
 
@@ -164,6 +172,25 @@ func (s *InventoryStore) GetByLabels(labels map[string]string) []*inventory.Inst
 	}
 
 	return matches
+}
+
+// GetInstancesWithState finds instances that need updates (current != desired)
+func (s *InventoryStore) GetInstancesWithState(currentState, desiredState inventory.State) ([]*inventory.Instance, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var matches []*inventory.Instance
+	for _, instance := range s.instances {
+		if instance.CurrentState.CodeVersion == currentState.CodeVersion &&
+			instance.CurrentState.ConfigurationVersion == currentState.ConfigurationVersion &&
+			(instance.DesiredState.CodeVersion != desiredState.CodeVersion ||
+				instance.DesiredState.ConfigurationVersion != desiredState.ConfigurationVersion) {
+			instanceCopy := *instance
+			matches = append(matches, &instanceCopy)
+		}
+	}
+
+	return matches, nil
 }
 
 // UpdateLabels provides more granular control over label updates

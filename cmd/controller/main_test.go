@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/xnok/dides/internal/deployment"
@@ -20,7 +21,8 @@ func setupTestServer() *httptest.Server {
 
 	deploymentStore := inmemory.NewDeploymentStore()
 	deploymentLock := inmemory.NewInMemoryLocker()
-	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock)
+	inventoryStateService := inventory.NewStateService(inventoryStore)
+	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock, inventoryStateService)
 
 	// Setup the router (same as main)
 	r := setupRouter()
@@ -94,7 +96,16 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	deployResp = testUtils.TriggerDeployment(t, deploymentRequest)
 	assert.Equal(t, http.StatusConflict, deployResp.StatusCode)
 
+	// Wait for the deployment to progress
+	time.Sleep(200 * time.Millisecond)
 
-	// 6. Deployment is in progress
+	// 6. Deployment is in progress - batch size need to be respected
+	updatedInstances = testUtils.GetAllInstances(t)
+	assert.Equal(t, "v2.0.0", updatedInstances[0].DesiredState.CodeVersion)
+	assert.Equal(t, "v2.0.0", updatedInstances[1].DesiredState.CodeVersion)
+	assert.Equal(t, "", updatedInstances[2].DesiredState.CodeVersion)
+	assert.Equal(t, "", updatedInstances[3].DesiredState.CodeVersion)
+
+	
 
 }

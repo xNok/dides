@@ -45,19 +45,53 @@ func (s *DeploymentStore) Save(record *deployment.DeploymentRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Generate a unique ID for the deployment
-	id := s.generateID()
+	// Generate a unique ID for the deployment if not set
+	if record.ID == "" {
+		record.ID = s.generateID()
+	}
 
 	now := time.Now()
 	entry := &deploymentEntry{
-		ID:        id,
+		ID:        record.ID,
 		Record:    record,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 
-	s.deployments[id] = entry
+	s.deployments[record.ID] = entry
 	return nil
+}
+
+// Update updates an existing deployment record
+func (s *DeploymentStore) Update(record *deployment.DeploymentRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, exists := s.deployments[record.ID]
+	if !exists {
+		return deployment.ErrDeploymentNotFound
+	}
+
+	// Update the record and timestamp
+	entry.Record = record
+	entry.UpdatedAt = time.Now()
+
+	return nil
+}
+
+// GetByID retrieves a deployment by ID
+func (s *DeploymentStore) GetByID(id string) (*deployment.DeploymentRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	entry, exists := s.deployments[id]
+	if !exists {
+		return nil, deployment.ErrDeploymentNotFound
+	}
+
+	// Return a copy to prevent external modifications
+	recordCopy := *entry.Record
+	return &recordCopy, nil
 }
 
 // Get retrieves a deployment by ID

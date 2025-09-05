@@ -27,7 +27,25 @@ type Configuration struct {
 	FailureThreshold int `json:"failure_threshold"`
 }
 
+// DeploymentRecord represents an record for the deployment history
 type DeploymentRecord struct {
+	ID      string            `json:"id"`
 	Request DeploymentRequest `json:"request"`
 	Status  DeploymentStatus  `json:"status"`
+	// Progress tracking for rolling deployments
+	Progress DeploymentProgress `json:"progress"`
+}
+
+// DeploymentProgress tracks the progress of a deployment
+type DeploymentProgress struct {
+	// Total number of instances that match the deployment labels
+	TotalInstances int `json:"total_instances"`
+	// Number of instances currently being updated (in progress)
+	InProgressInstances int `json:"in_progress_instances"`
+	// Number of instances successfully updated
+	CompletedInstances int `json:"completed_instances"`
+	// Number of instances that failed to update
+	FailedInstances int `json:"failed_instances"`
+	// Instances currently in the active batch
+	CurrentBatch []string `json:"current_batch"`
 }
