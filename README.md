@@ -1,6 +1,12 @@
 # dides
 
-distributed deployment system
+Distributed deployment system that safely rolls out updates across many service instances.
+
+## How to run the system
+
+```
+go run ./cmd/controller/main.go
+```
 
 
 ## Register A New instance
@@ -81,4 +87,5 @@ POST /deploy/progress
 In the best case scenario all intances eventualled report `HEALTHY` and `current_state == desired_state`. Then the eployment status is marked as completed.
 
 
-### Reconcillation Loop
+
+

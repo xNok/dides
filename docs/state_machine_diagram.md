@@ -3,7 +3,7 @@
 ## Overview
 DIDES (Distributed Instance Deployment System) is a rolling deployment orchestration system that manages the deployment of code and configuration updates across multiple instances using a state machine architecture.
 
-## 1. Deployment State Machine
+## 1. Deployment State Machine (✅ IMPLEMENTED)
 
 ### Deployment States
 
@@ -20,42 +20,49 @@ stateDiagram-v2
 ```
 
 ### Deployment State Definitions
-- **Unknown**: Initial state when deployment record is created
-- **Running**: Deployment is actively progressing through instances
-- **Completed**: All instances successfully updated to desired state
-- **Failed**: Deployment failed due to threshold exceeded or errors
+- **Unknown**: Initial state when deployment record is created (iota = 0)
+- **Running**: Deployment is actively progressing through instances (iota = 1) 
+- **Completed**: All instances successfully updated to desired state (iota = 2)
+- **Failed**: Deployment failed due to threshold exceeded or errors (iota = 3)
 
-## 2. Instance State Machine
+## 2. Instance State Machine (⚠️ PARTIALLY IMPLEMENTED)
 
-### Instance Status States
+### Instance Status States (Actual Implementation)
 ```mermaid
 stateDiagram-v2
     [*] --> UNKNOWN
     UNKNOWN --> HEALTHY : Instance reports healthy status
-    UNKNOWN --> DEGRADED : Instance reports degraded status
     UNKNOWN --> FAILED : Instance reports failed status
-    HEALTHY --> DEGRADED : Health check fails
     HEALTHY --> FAILED : Critical failure
-    DEGRADED --> HEALTHY : Instance recovers
-    DEGRADED --> FAILED : Condition worsens
     FAILED --> UNKNOWN : Reset via ResetFailedInstances()
     FAILED --> HEALTHY : Instance recovers
 ```
 
-### Instance Update States
+**⚠️ MISSING IMPLEMENTATION**: The `DEGRADED` status is documented in the README and diagrams but **NOT IMPLEMENTED** in the code. Only three statuses exist:
+- `UNKNOWN` (iota = 0) - Default when instance is registered/not used
+- `HEALTHY` (iota = 1) - Instance is functioning normally
+- `FAILED` (iota = 2) - Instance has failed ⚠️ **Note: No DEGRADED status in code**
+
+### Instance Update States (✅ IMPLEMENTED)
 ```mermaid
 stateDiagram-v2
     [*] --> NotNeeded : currentState == desiredState
     [*] --> NeedingUpdate : currentState != desiredState
     NeedingUpdate --> InProgress : UpdateDesiredState() called
-    InProgress --> Completed : Instance reports currentState == desiredState
+    InProgress --> Completed : Instance reports currentState == desiredState && HEALTHY
     InProgress --> Failed : Instance reports FAILED status
     Completed --> NeedingUpdate : New deployment with different desiredState
     Failed --> InProgress : Reset and retry
     NotNeeded --> NeedingUpdate : New deployment changes desiredState
 ```
 
-## 3. Rolling Deployment Flow Chart
+**Implementation Details**:
+- `needsUpdate()`: Checks if `currentState != desiredState` (code or config version)
+- `isInProgress()`: Instance has `desiredState` set but `currentState` hasn't caught up yet
+- `isCompleted()`: `currentState == desiredState` AND `status == HEALTHY`
+- `isFailed()`: Instance has `desiredState` set but `status == FAILED`
+
+## 3. Rolling Deployment Flow Chart (✅ IMPLEMENTED)
 
 ### Main Deployment Flow
 ```mermaid
@@ -80,7 +87,7 @@ flowchart TD
     O --> Q[End: Deployment Started]
 ```
 
-### Progress Deployment Flow
+### Progress Deployment Flow (✅ IMPLEMENTED)
 ```mermaid
 flowchart TD
     A[ProgressDeployment Request] --> B[Acquire Lock]
@@ -114,7 +121,7 @@ flowchart TD
     S --> X[End: Progress Updated]
 ```
 
-### Rollback Flow
+### Rollback Flow (✅ IMPLEMENTED)
 ```mermaid
 flowchart TD
     A[TriggerRollback Request] --> B[Acquire Lock]
@@ -134,7 +141,7 @@ flowchart TD
     M --> N[End: Rollback Started]
 ```
 
-## 4. Instance Update Lifecycle
+## 4. Instance Update Lifecycle (✅ IMPLEMENTED)
 
 ### Instance Registration and Update Flow
 ```mermaid
@@ -165,7 +172,9 @@ flowchart TD
     Q --> C
 ```
 
-## 5. Concurrency and Locking
+**Implementation Note**: The actual heartbeat mechanism is implemented via PATCH `/inventory/instances/{instanceID}` endpoint which updates the instance's current state and status.
+
+## 5. Concurrency and Locking (✅ IMPLEMENTED)
 
 ### Lock Management Flow
 ```mermaid
@@ -185,18 +194,22 @@ flowchart TD
     end
 ```
 
-## 6. State Transition Conditions
+**Implementation**: Uses simple in-memory locking with key "deployment" to ensure only one deployment operation can run at a time.
 
-### Instance State Logic
+## 6. State Transition Conditions (✅ IMPLEMENTED)
+
+### Instance State Logic (Updated to Match Implementation)
 | Current State | Desired State | Instance Status | Result State |
 |---------------|---------------|-----------------|--------------|
 | v1.0.0 | v1.0.0 | Any | Not Needing Update |
 | v1.0.0 | v2.0.0 | UNKNOWN/HEALTHY | Needing Update |
-| v1.0.0 | v2.0.0 | DEGRADED/FAILED | Needing Update |
+| v1.0.0 | v2.0.0 | FAILED | Needing Update |
 | v1.0.0 (desired: v2.0.0) | v2.0.0 | HEALTHY | In Progress → Completed |
 | v1.0.0 (desired: v2.0.0) | v2.0.0 | FAILED | In Progress → Failed |
 
-### Deployment State Logic
+⚠️ **Note**: Original documentation mentioned DEGRADED status, but this is **not implemented** in the code.
+
+### Deployment State Logic (✅ IMPLEMENTED)
 | Current Status | Condition | Next Status | Action |
 |----------------|-----------|-------------|---------|
 | Running | All instances completed | Completed | Mark deployment successful |
@@ -205,7 +218,7 @@ flowchart TD
 | Running | Batch has capacity | Running | Start next batch |
 | Failed | Rollback triggered | Running | Start rollback deployment |
 
-## 7. Error Handling States
+## 7. Error Handling States (✅ IMPLEMENTED)
 
 ### Error Conditions and Recovery
 ```mermaid
@@ -228,12 +241,71 @@ flowchart TD
     J --> L
 ```
 
-This state machine architecture provides:
-1. **Clear state transitions** for both deployments and instances
-2. **Concurrency control** through locking mechanisms
-3. **Error handling and recovery** through automatic rollbacks
-4. **Progress tracking** through detailed counters
-5. **Batch processing** to control deployment velocity
-6. **Rollback capabilities** for failed deployments
+**Implementation Details**:
+- `ErrFailureThresholdExceeded` is returned when failed instances >= threshold
+- Automatic rollback is triggered in `ProgressDeployment()` when this error occurs
+- `ResetFailedInstances()` sets all FAILED instances matching labels back to UNKNOWN
 
-The system ensures that only one deployment can run at a time, provides detailed progress tracking, and automatically handles failures through rollback mechanisms.
+## 8. HTTP API Endpoints (✅ IMPLEMENTED)
+
+### Inventory Management
+- `GET /inventory/instances` - List all instances
+- `POST /inventory/instances/register` - Register new instance
+- `PATCH /inventory/instances/{instanceID}` - Update instance status/state
+
+### Deployment Management  
+- `POST /deploy/` - Trigger deployment
+- `GET /deploy/status` - Get running deployments status
+- `POST /deploy/progress` - Manually progress deployment (for testing)
+- `POST /deploy/rollback` - Trigger rollback
+
+## 9. Unused/Untested Functions (⚠️ IDENTIFIED ISSUES)
+
+### Functions Implemented But Not Used in Main Flow:
+1. **`GetByID()`** in DeploymentStore - Only used in tests
+2. **`Delete()`** in both DeploymentStore and InventoryStore - Only used in tests  
+3. **`GetByIP()`** in InventoryStore - Not used anywhere
+4. **`UpdateLabels()`** in InventoryStore - Only used in tests
+5. **`Get()`** method in DeploymentStore - Returns extended record type, not used
+6. **`GetAll()`** in DeploymentStore - Not used in main application flow
+7. **`UpdateStatus()`** in DeploymentStore - Not used in main flow
+8. **`GetByLabels()`** in DeploymentStore - Not used in main flow
+
+### Empty/Placeholder Components:
+1. **CLI Command** (`cmd/cli/main.go`) - Empty main function
+2. **Simulator Command** (`cmd/simulator/main.go`) - Empty main function  
+3. **Simulator Package** - Has utilities but no actual simulation logic
+
+### Missing DEGRADED Status:
+- **DEGRADED status** is documented everywhere but **not implemented in code**
+- README.md and diagrams show DEGRADED => 2, but code only has UNKNOWN(0), HEALTHY(1), FAILED(2)
+
+## 10. Improvements and Recommendations
+
+### High Priority Fixes:
+1. **Implement DEGRADED Status**: Add the missing status constant and update state transitions
+2. **Complete CLI Tool**: Implement actual CLI commands for deployment operations
+3. **Complete Simulator**: Implement actual instance simulation functionality
+4. **Remove Unused Functions**: Clean up functions that are only used in tests
+
+### Medium Priority Improvements:
+1. **Transaction Support**: Add proper transaction handling for batch operations
+2. **Background Processing**: Implement actual background reconciliation instead of manual progress calls
+3. **Metrics and Monitoring**: Add deployment metrics and health monitoring
+4. **Configuration Validation**: Enhance validation for deployment requests and instance registration
+
+### Low Priority Enhancements:
+1. **Database Storage**: Replace in-memory storage with persistent database
+2. **Advanced Deployment Strategies**: Implement blue-green, canary deployments
+3. **Instance Groups**: Support for deployment to instance groups/clusters
+4. **Webhook Support**: Add webhook notifications for deployment events
+
+This state machine architecture provides:
+1. **Clear state transitions** for both deployments and instances ✅
+2. **Concurrency control** through locking mechanisms ✅  
+3. **Error handling and recovery** through automatic rollbacks ✅
+4. **Progress tracking** through detailed counters ✅
+5. **Batch processing** to control deployment velocity ✅
+6. **Rollback capabilities** for failed deployments ✅
+
+⚠️ **Note**: The system has significant functionality implemented but also has several unused functions and missing features (like DEGRADED status) that should be addressed for production readiness.

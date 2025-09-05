@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -17,6 +18,8 @@ var (
 	registrationService *inventory.RegistrationService
 	updateService       *inventory.UpdateService
 	triggerService      *deployment.TriggerService
+
+	addr = ":3000"
 )
 
 func main() {
@@ -37,7 +40,13 @@ func main() {
 	// Setup REST Router
 	r := setupRouter()
 
-	http.ListenAndServe(":3333", r)
+	// Log that the server is starting
+	log.Printf("Server starting on %s", addr)
+
+	// Start the HTTP server
+	if err := http.ListenAndServe(addr, r); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
 }
 
 // setupRouter creates and configures the HTTP router
