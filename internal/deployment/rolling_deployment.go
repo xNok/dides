@@ -153,7 +153,6 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	if completed == record.Progress.TotalInstances {
 		record.Status = Completed
 		record.Progress.CompletedInstances = completed
-		record.Progress.InProgressInstances = 0
 		return record, rd.store.Update(record)
 	}
 
