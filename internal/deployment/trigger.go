@@ -3,8 +3,6 @@ package deployment
 import (
 	"context"
 	"errors"
-
-	"github.com/xnok/dides/internal/inventory"
 )
 
 const (
@@ -12,11 +10,13 @@ const (
 )
 
 //go:generate mockgen -source=trigger.go -destination=mocks/mock_store.go -package=mocks
+//go:generate mockgen -source=strategy.go -destination=mocks/mock_strategy.go -package=mocks
 
 var (
-	ErrInvalidDeploymentRequest = errors.New("invalid deployment request")
-	ErrRolloutInProgress        = errors.New("deployment rollout in progress")
-	ErrDeploymentNotFound       = errors.New("deployment not found")
+	ErrInvalidDeploymentRequest      = errors.New("invalid deployment request")
+	ErrRolloutInProgress             = errors.New("deployment rollout in progress")
+	ErrDeploymentNotFound            = errors.New("deployment not found")
+	ErrMoreThanOneInflightDeployment = errors.New("more than one inflight deployment found")
 )
 
 type Store interface {
@@ -25,33 +25,22 @@ type Store interface {
 	Update(record *DeploymentRecord) error
 }
 
-type InventoryService interface {
-	// GetInstancesByLabels returns instances that match the given labels
-	GetInstancesByLabels(labels map[string]string) ([]*inventory.Instance, error)
-	// UpdateDesiredState sets the desired state for an instance
-	UpdateDesiredState(instanceKey string, state inventory.State) error
-	// Efficient methods for deployment logic
-	CountByLabels(labels map[string]string) int
-	GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error)
-	CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error)
-}
-
 type Locker interface {
 	Lock(ctx context.Context, key string) error
 	Unlock(ctx context.Context, key string) error
 }
 
 type TriggerService struct {
-	store     Store
-	lock      Locker
-	inventory InventoryService
+	store    Store
+	lock     Locker
+	strategy DeploymentStrategy
 }
 
-func NewTriggerService(store Store, lock Locker, inventory InventoryService) *TriggerService {
+func NewTriggerService(store Store, lock Locker, strategy DeploymentStrategy) *TriggerService {
 	return &TriggerService{
-		store:     store,
-		lock:      lock,
-		inventory: inventory,
+		store:    store,
+		lock:     lock,
+		strategy: strategy,
 	}
 }
 
@@ -91,8 +80,8 @@ func (s *TriggerService) TriggerDeployment(ctx context.Context, req *DeploymentR
 		return err
 	}
 
-	// 3. trigger the deployment
-	if err := s.startDeployment(record); err != nil {
+	// 3. trigger the deployment using the strategy
+	if err := s.strategy.StartDeployment(record); err != nil {
 		return err
 	}
 
@@ -106,4 +95,34 @@ func (s *TriggerService) isRolloutInProgress() bool {
 	}
 
 	return len(runningDeployments) > 0
+}
+
+// GetDeploymentStatus returns all currently running deployments
+func (s *TriggerService) GetDeploymentStatus() ([]*DeploymentRecord, error) {
+	return s.store.GetByStatus(Running)
+}
+
+// ProgressDeployment checks instance states and progresses the deployment
+func (s *TriggerService) ProgressDeployment(ctx context.Context) (*DeploymentRecord, error) {
+	if err := s.lock.Lock(ctx, lockKey); err != nil {
+		return nil, err
+	}
+	defer s.lock.Unlock(ctx, lockKey)
+
+	// 1. Get the deployment record
+	records, err := s.store.GetByStatus(Running)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(records) == 0 {
+		return nil, nil
+	}
+
+	if len(records) != 1 {
+		return nil, ErrMoreThanOneInflightDeployment
+	}
+
+	// 2. Use the strategy to progress the deployment
+	return s.strategy.ProgressDeployment(ctx, records[0])
 }

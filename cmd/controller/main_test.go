@@ -22,7 +22,10 @@ func setupTestServer() *httptest.Server {
 	deploymentStore := inmemory.NewDeploymentStore()
 	deploymentLock := inmemory.NewInMemoryLocker()
 	inventoryStateService := inventory.NewStateService(inventoryStore)
-	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock, inventoryStateService)
+
+	// Create rolling deployment strategy and inject it into the trigger service
+	rollingStrategy := deployment.NewRollingDeployment(deploymentStore, inventoryStateService)
+	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock, rollingStrategy)
 
 	// Setup the router (same as main)
 	r := setupRouter()
@@ -128,6 +131,5 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	_, progressResp = testUtils.ProgressDeployment(t)
 	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
-
 
 }

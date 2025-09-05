@@ -29,7 +29,10 @@ func main() {
 	deploymentStore := inmemory.NewDeploymentStore()
 	deploymentLock := inmemory.NewInMemoryLocker()
 	inventoryStateService := inventory.NewStateService(InventoryStore)
-	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock, inventoryStateService)
+
+	// Create rolling deployment strategy and inject it into the trigger service
+	rollingStrategy := deployment.NewRollingDeployment(deploymentStore, inventoryStateService)
+	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock, rollingStrategy)
 
 	// Setup REST Router
 	r := setupRouter()

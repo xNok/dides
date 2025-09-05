@@ -8,7 +8,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/xnok/dides/internal/deployment"
 	"github.com/xnok/dides/internal/deployment/mocks"
-	"github.com/xnok/dides/internal/inventory"
 )
 
 func TestTriggerService_TriggerDeployment(t *testing.T) {
@@ -17,8 +16,8 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	mockInventory := mocks.NewMockInventoryService(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
+	mockStrategy := mocks.NewMockDeploymentStrategy(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockStrategy)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{
@@ -39,14 +38,8 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 		record.ID = "deployment-001"
 		return nil
 	}).Times(1)
-	// Mock inventory service calls for startDeployment - now using the efficient method
-	desiredState := inventory.State{
-		CodeVersion:          req.CodeVersion,
-		ConfigurationVersion: req.ConfigurationVersion,
-	}
-	mockInventory.EXPECT().GetNeedingUpdate(req.Labels, desiredState, gomock.Any()).Return([]*inventory.Instance{}, nil).Times(1)
-	mockInventory.EXPECT().CountNeedingUpdate(req.Labels, desiredState).Return(0, nil).Times(1)
-	mockStore.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
+	// Mock strategy StartDeployment call
+	mockStrategy.EXPECT().StartDeployment(gomock.Any()).Return(nil).Times(1)
 
 	err := service.TriggerDeployment(ctx, &req)
 	if err != nil {
@@ -60,8 +53,8 @@ func TestTriggerService_TriggerDeployment_EmptyCodeVersion(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	mockInventory := mocks.NewMockInventoryService(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
+	mockStrategy := mocks.NewMockDeploymentStrategy(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockStrategy)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{
@@ -83,8 +76,8 @@ func TestTriggerService_TriggerDeployment_StoreError(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	mockInventory := mocks.NewMockInventoryService(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
+	mockStrategy := mocks.NewMockDeploymentStrategy(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockStrategy)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{
@@ -113,8 +106,8 @@ func TestTriggerService_TriggerDeployment_RolloutInProgress(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	mockInventory := mocks.NewMockInventoryService(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
+	mockStrategy := mocks.NewMockDeploymentStrategy(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockStrategy)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{
@@ -146,8 +139,8 @@ func TestTriggerService_TriggerDeployment_LockError(t *testing.T) {
 
 	mockStore := mocks.NewMockStore(ctrl)
 	mockLocker := mocks.NewMockLocker(ctrl)
-	mockInventory := mocks.NewMockInventoryService(ctrl)
-	service := deployment.NewTriggerService(mockStore, mockLocker, mockInventory)
+	mockStrategy := mocks.NewMockDeploymentStrategy(ctrl)
+	service := deployment.NewTriggerService(mockStore, mockLocker, mockStrategy)
 
 	ctx := context.Background()
 	req := deployment.DeploymentRequest{

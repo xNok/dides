@@ -230,6 +230,27 @@ func (s *InventoryStore) CountNeedingUpdate(labels map[string]string, desiredSta
 	return count, nil
 }
 
+// CountCompleted returns the count of instances that match labels and have completed the update to desired state
+func (s *InventoryStore) CountCompleted(labels map[string]string, desiredState inventory.State) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	count := 0
+	for _, instance := range s.instances {
+		if s.matchesLabels(instance, labels) && s.isCompleted(instance, desiredState) {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
+// isCompleted checks if an instance has completed the update to the desired state
+func (s *InventoryStore) isCompleted(instance *inventory.Instance, desiredState inventory.State) bool {
+	return instance.CurrentState.CodeVersion == desiredState.CodeVersion &&
+		instance.CurrentState.ConfigurationVersion == desiredState.ConfigurationVersion
+}
+
 // needsUpdate checks if an instance needs an update based on desired state
 func (s *InventoryStore) needsUpdate(instance *inventory.Instance, desiredState inventory.State) bool {
 	return instance.CurrentState.CodeVersion != desiredState.CodeVersion ||

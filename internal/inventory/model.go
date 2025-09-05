@@ -79,4 +79,6 @@ type Store interface {
 	// Search for update
 	GetNeedingUpdate(labels map[string]string, desiredState State, opts *GetNeedingUpdateOptions) ([]*Instance, error)
 	CountNeedingUpdate(labels map[string]string, desiredState State) (int, error)
+	// CountCompleted returns the total number of instances that have completed the update to the desired state
+	CountCompleted(labels map[string]string, desiredState State) (int, error)
 }

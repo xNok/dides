@@ -116,6 +116,21 @@ func (mr *MockInventoryServiceMockRecorder) CountByLabels(labels interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByLabels", reflect.TypeOf((*MockInventoryService)(nil).CountByLabels), labels)
 }
 
+// CountCompleted mocks base method.
+func (m *MockInventoryService) CountCompleted(labels map[string]string, desiredState inventory.State) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountCompleted", labels, desiredState)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountCompleted indicates an expected call of CountCompleted.
+func (mr *MockInventoryServiceMockRecorder) CountCompleted(labels, desiredState interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountCompleted", reflect.TypeOf((*MockInventoryService)(nil).CountCompleted), labels, desiredState)
+}
+
 // CountNeedingUpdate mocks base method.
 func (m *MockInventoryService) CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error) {
 	m.ctrl.T.Helper()

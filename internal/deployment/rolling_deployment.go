@@ -2,17 +2,42 @@ package deployment
 
 import (
 	"context"
-	"errors"
 
 	"github.com/xnok/dides/internal/inventory"
 )
 
-var (
-	ErrMoreThanOneInflightDeployment = errors.New("more than one inflight deployment found")
-)
+// RollingDeployment implements the rolling deployment strategy
+type RollingDeployment struct {
+	store     Store
+	inventory InventoryService
+}
 
-// startDeployment initialize the deployment with the number of instance matching the batch size
-func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
+type InventoryService interface {
+	// GetInstancesByLabels returns instances that match the given labels
+	GetInstancesByLabels(labels map[string]string) ([]*inventory.Instance, error)
+	// UpdateDesiredState sets the desired state for an instance
+	UpdateDesiredState(instanceKey string, state inventory.State) error
+
+	// CountByLabels returns the total number of instances that match the given labels
+	CountByLabels(labels map[string]string) int
+	// CountNeedingUpdate returns the total number of instances that need to be updated
+	CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error)
+	// GetNeedingUpdate returns instances that need to be updated (options can limit the number of results for batching)
+	GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error)
+	// CountCompleted returns the total number of instances that have completed the update
+	CountCompleted(labels map[string]string, desiredState inventory.State) (int, error)
+}
+
+// NewRollingDeployment creates a new rolling deployment strategy
+func NewRollingDeployment(store Store, inventory InventoryService) *RollingDeployment {
+	return &RollingDeployment{
+		store:     store,
+		inventory: inventory,
+	}
+}
+
+// StartDeployment initializes the deployment with the number of instances matching the batch size
+func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
 	// 1. Determine desired state from the deployment request
 	desiredState := inventory.State{
 		CodeVersion:          record.Request.CodeVersion,
@@ -20,7 +45,7 @@ func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
 	}
 
 	// 2. Get total count of instances needing update for progress tracking
-	totalInstances, err := s.inventory.CountNeedingUpdate(record.Request.Labels, desiredState)
+	totalInstances, err := rd.inventory.CountNeedingUpdate(record.Request.Labels, desiredState)
 	if err != nil {
 		return err
 	}
@@ -38,7 +63,7 @@ func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
 	opts := &inventory.GetNeedingUpdateOptions{
 		Limit: record.Request.Configuration.BatchSize,
 	}
-	instances, err := s.inventory.GetNeedingUpdate(record.Request.Labels, desiredState, opts)
+	instances, err := rd.inventory.GetNeedingUpdate(record.Request.Labels, desiredState, opts)
 	if err != nil {
 		return err
 	}
@@ -47,7 +72,7 @@ func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
 	if len(instances) == 0 {
 		record.Status = Completed
 		record.Progress.CompletedInstances = totalInstances
-		return s.store.Update(record)
+		return rd.store.Update(record)
 	}
 
 	// 6. Start the first batch of deployments
@@ -55,8 +80,9 @@ func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
 	record.Progress.CurrentBatch = make([]string, len(currentBatch))
 
 	// 7. Update desired state for instances in the current batch
+	// TODO: Consider using UpdateMany such that it can be done in a transaction (so it can be rolled back)
 	for i, instance := range currentBatch {
-		if err := s.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
+		if err := rd.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
 			return err
 		}
 
@@ -66,44 +92,58 @@ func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
 	}
 
 	// Update the deployment record with progress
-	return s.store.Update(record)
+	return rd.store.Update(record)
 }
 
 // ProgressDeployment checks instance states and progresses the deployment
-func (s *TriggerService) ProgressDeployment(ctx context.Context) (*DeploymentRecord, error) {
-	if err := s.lock.Lock(ctx, lockKey); err != nil {
-		return nil, err
+func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *DeploymentRecord) (*DeploymentRecord, error) {
+	// 1. Determine desired state from the deployment request
+	desiredState := inventory.State{
+		CodeVersion:          record.Request.CodeVersion,
+		ConfigurationVersion: record.Request.ConfigurationVersion,
 	}
-	defer s.lock.Unlock(ctx, lockKey)
 
-	// 1. Get the deployment record
-	record, err := s.store.GetByStatus(Running)
+	// 2. Check if failure threshold exceeded
+	if rd.IsFailureThresholdExceeded(record) {
+		if err := rd.RollbackDeployment(record); err != nil {
+			return nil, err
+		}
+		record.Status = Failed
+		return record, rd.store.Update(record)
+	}
+
+	// 3. How many of the current batch are done?
+	completed, err := rd.inventory.CountCompleted(record.Request.Labels, desiredState)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(record) == 0 {
-		return nil, nil
+	if completed == record.Progress.TotalInstances {
+		record.Status = Completed
+		record.Progress.CompletedInstances = completed
+		record.Progress.InProgressInstances = 0
+		record.Progress.CurrentBatch = nil
+		return record, rd.store.Update(record)
 	}
 
-	if len(record) != 1 {
-		return nil, ErrMoreThanOneInflightDeployment
-	}
+	// TODO: 4. Get the next batch batch_size - inflight
+	// TODO: 5. Update the state for next batch
 
-	// 2. Compute the next update
-
-	// 2.0 How many have failed if failed > max_failures then store and rollback
-
-	// 2.1 How many of the current batch are done
-
-	// 2.2 Get the next batch batch_size - inflight
-
-	// 2.3 Update the state for next batch
-
-	return record[0], nil
+	return record, nil
 }
 
-// GetDeploymentStatus returns all currently running deployments
-func (s *TriggerService) GetDeploymentStatus() ([]*DeploymentRecord, error) {
-	return s.store.GetByStatus(Running)
+// IsFailureThresholdExceeded checks if the deployment has exceeded failure limits
+func (rd *RollingDeployment) IsFailureThresholdExceeded(record *DeploymentRecord) bool {
+	// TODO: Implement actual failure threshold logic
+	// For now, return false (placeholder implementation)
+	return false
+}
+
+// RollbackDeployment reverts a failed deployment
+func (rd *RollingDeployment) RollbackDeployment(record *DeploymentRecord) error {
+	// TODO: Implement actual rollback logic
+	// 1. Cancel the current deployment
+	// 2. Trigger a new deployment to the previous version
+
+	return nil
 }

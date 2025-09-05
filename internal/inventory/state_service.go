@@ -46,3 +46,8 @@ func (s *StateService) GetNeedingUpdate(labels map[string]string, desiredState S
 func (s *StateService) CountNeedingUpdate(labels map[string]string, desiredState State) (int, error) {
 	return s.store.CountNeedingUpdate(labels, desiredState)
 }
+
+// CountCompleted returns the count of instances that match labels and have completed the update to desired state
+func (s *StateService) CountCompleted(labels map[string]string, desiredState State) (int, error) {
+	return s.store.CountCompleted(labels, desiredState)
+}
