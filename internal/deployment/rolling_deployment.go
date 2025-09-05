@@ -98,18 +98,43 @@ func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
 
 // ProgressDeployment checks instance states and progresses the deployment
 func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *DeploymentRecord) (*DeploymentRecord, error) {
-	// 1. Determine desired state from the deployment request
+	// 0. Determine desired state from the deployment request
 	desiredState := inventory.State{
 		CodeVersion:          record.Request.CodeVersion,
 		ConfigurationVersion: record.Request.ConfigurationVersion,
 	}
 
-	// 2. Check if failure threshold exceeded
-	shouldRollback, err := rd.checkFailureThreshold(record, desiredState)
+	// ------------------------------------------------------
+    // State Refresh Logic
+    // ------------------------------------------------------
+
+	// 1. Check number of failed instances and update record
+	failed, err := rd.inventory.CountFailed(record.Request.Labels, desiredState)
 	if err != nil {
 		return nil, err
 	}
-	if shouldRollback {
+
+	// 2. How many of the current batch are done?
+	completed, err := rd.inventory.CountCompleted(record.Request.Labels, desiredState)
+	if err != nil {
+		return nil, err
+	}
+
+	progress, err := rd.inventory.CountNeedingUpdate(record.Request.Labels, desiredState)
+	if err != nil {
+		return nil, err
+	}
+
+	record.Progress.FailedInstances = failed
+	record.Progress.CompletedInstances = completed
+	record.Progress.InProgressInstances = progress
+
+	// ------------------------------------------------------
+    // State Update Logic
+    // ------------------------------------------------------
+
+	// 1. If failure threshold exceeded, trigger rollback
+	if failed > record.Request.Configuration.FailureThreshold {
 		if err := rd.RollbackDeployment(record); err != nil {
 			return nil, err
 		}
@@ -117,23 +142,15 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 		return record, rd.store.Update(record)
 	}
 
-	// 3. How many of the current batch are done?
-	completed, err := rd.inventory.CountCompleted(record.Request.Labels, desiredState)
-	if err != nil {
-		return nil, err
-	}
-
+	// 2. If there are still instances in progress, wait for them to complete
 	if completed == record.Progress.TotalInstances {
 		record.Status = Completed
 		record.Progress.CompletedInstances = completed
 		record.Progress.InProgressInstances = 0
 		return record, rd.store.Update(record)
-	} else {
-		record.Progress.CompletedInstances = completed
-		record.Progress.InProgressInstances = record.Progress.TotalInstances - completed - record.Progress.FailedInstances
 	}
 
-	// TODO: 4. Get the next batch = batch_size - inflight
+	// 3. Get the next batch = batch_size - inflight
 	opts := &inventory.GetNeedingUpdateOptions{
 		Limit: record.Request.Configuration.BatchSize - record.Progress.InProgressInstances,
 	}
@@ -151,25 +168,6 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	}
 
 	return record, rd.store.Update(record)
-}
-
-// checkFailureThreshold checks if the deployment has exceeded failure limits and updates progress
-func (rd *RollingDeployment) checkFailureThreshold(record *DeploymentRecord, desiredState inventory.State) (bool, error) {
-	failed, err := rd.inventory.CountFailed(record.Request.Labels, desiredState)
-	if err != nil {
-		return false, err
-	}
-
-	record.Progress.FailedInstances = failed
-
-	return failed > record.Request.Configuration.FailureThreshold, nil
-}
-
-// IsFailureThresholdExceeded checks if the deployment has exceeded failure limits
-func (rd *RollingDeployment) IsFailureThresholdExceeded(record *DeploymentRecord) bool {
-	// TODO: Implement actual failure threshold logic
-	// For now, return false (placeholder implementation)
-	return false
 }
 
 // RollbackDeployment reverts a failed deployment
