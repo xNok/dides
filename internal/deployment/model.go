@@ -3,7 +3,7 @@ package deployment
 type DeploymentStatus int
 
 const (
-	Pending DeploymentStatus = iota
+	Unknown DeploymentStatus = iota
 	Running
 	Completed
 	Failed
@@ -27,7 +27,7 @@ type Configuration struct {
 	FailureThreshold int `json:"failure_threshold"`
 }
 
-type Deployment struct {
-	DeploymentRequest DeploymentRequest
-	Status            DeploymentStatus `json:"status"`
+type DeploymentRecord struct {
+	Request DeploymentRequest `json:"request"`
+	Status  DeploymentStatus  `json:"status"`
 }

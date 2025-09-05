@@ -29,6 +29,13 @@ func main() {
 	triggerService = deployment.NewTriggerService(deploymentStore)
 
 	// Setup REST Router
+	r := setupRouter()
+
+	http.ListenAndServe(":3333", r)
+}
+
+// setupRouter creates and configures the HTTP router
+func setupRouter() *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -49,9 +56,10 @@ func main() {
 		r.Post("/", deployTrigger)
 	})
 
-	http.ListenAndServe(":3333", r)
+	return r
 }
 
+// registerInstance adds an instance to the inventory
 func registerInstance(w http.ResponseWriter, r *http.Request) {
 	var req inventory.RegistrationRequest
 
@@ -84,6 +92,7 @@ func registerInstance(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// updateInstance modify the state of the instance record and return desired state
 func updateInstance(w http.ResponseWriter, r *http.Request) {
 	// Extract instance ID from URL path parameter
 	instanceID := chi.URLParam(r, "instanceID")
@@ -127,6 +136,7 @@ func updateInstance(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// deployTrigger starts a deployment to a given set of instances
 func deployTrigger(w http.ResponseWriter, r *http.Request) {
 	var req deployment.DeploymentRequest
 
@@ -137,7 +147,7 @@ func deployTrigger(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Trigger the deployment using the trigger service
-	err := triggerService.TriggerDeployment(req)
+	err := triggerService.TriggerDeployment(&req)
 	if err != nil {
 		http.Error(w, "Failed to trigger deployment", http.StatusInternalServerError)
 		return

@@ -15,7 +15,7 @@ func TestDeploymentStore_Save(t *testing.T) {
 		Labels:               map[string]string{"env": "prod", "app": "web"},
 	}
 
-	err := store.Save(req)
+	err := store.Save(&req)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -40,8 +40,8 @@ func TestDeploymentStore_Save(t *testing.T) {
 		t.Errorf("Expected ConfigurationVersion %s, got %s", req.ConfigurationVersion, saved.Request.ConfigurationVersion)
 	}
 
-	if saved.Status != deployment.Pending {
-		t.Errorf("Expected status %v, got %v", deployment.Pending, saved.Status)
+	if saved.Status != deployment.Running {
+		t.Errorf("Expected status %v, got %v", deployment.Running, saved.Status)
 	}
 
 	if saved.ID == "" {
@@ -57,7 +57,7 @@ func TestDeploymentStore_Get(t *testing.T) {
 		Labels:      map[string]string{"env": "test"},
 	}
 
-	err := store.Save(req)
+	err := store.Save(&req)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -95,33 +95,42 @@ func TestDeploymentStore_GetByStatus(t *testing.T) {
 	req2 := deployment.DeploymentRequest{CodeVersion: "v1.1.0"}
 	req3 := deployment.DeploymentRequest{CodeVersion: "v1.2.0"}
 
-	store.Save(req1)
-	store.Save(req2)
-	store.Save(req3)
+	store.Save(&req1)
+	store.Save(&req2)
+	store.Save(&req3)
 
 	// All should be Pending initially
-	pending := store.GetByStatus(deployment.Pending)
+	pending, err := store.GetByStatus(deployment.Running)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
 	if len(pending) != 3 {
 		t.Errorf("Expected 3 pending deployments, got %d", len(pending))
 	}
 
 	// Update one to Running
 	deployments := store.GetAll()
-	err := store.UpdateStatus(deployments[0].ID, deployment.Running)
+	err = store.UpdateStatus(deployments[0].ID, deployment.Completed)
 	if err != nil {
 		t.Fatalf("Expected no error updating status, got %v", err)
 	}
 
 	// Check status distribution
-	pending = store.GetByStatus(deployment.Pending)
-	running := store.GetByStatus(deployment.Running)
-
-	if len(pending) != 2 {
-		t.Errorf("Expected 2 pending deployments, got %d", len(pending))
+	completed, err := store.GetByStatus(deployment.Completed)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	running, err := store.GetByStatus(deployment.Running)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if len(running) != 1 {
-		t.Errorf("Expected 1 running deployment, got %d", len(running))
+	if len(completed) != 1 {
+		t.Errorf("Expected 1 completed deployments, got %d", len(completed))
+	}
+
+	if len(running) != 2 {
+		t.Errorf("Expected 2 running deployment, got %d", len(running))
 	}
 }
 
@@ -143,9 +152,9 @@ func TestDeploymentStore_GetByLabels(t *testing.T) {
 		Labels:      map[string]string{"env": "prod", "app": "api"},
 	}
 
-	store.Save(req1)
-	store.Save(req2)
-	store.Save(req3)
+	store.Save(&req1)
+	store.Save(&req2)
+	store.Save(&req3)
 
 	// Find by single label
 	webDeployments := store.GetByLabels(map[string]string{"app": "web"})
@@ -168,7 +177,7 @@ func TestDeploymentStore_UpdateStatus(t *testing.T) {
 	store := NewDeploymentStore()
 
 	req := deployment.DeploymentRequest{CodeVersion: "v1.0.0"}
-	store.Save(req)
+	store.Save(&req)
 
 	deployments := store.GetAll()
 	deploymentID := deployments[0].ID
@@ -191,7 +200,7 @@ func TestDeploymentStore_UpdateStatus(t *testing.T) {
 
 	// Test updating non-existent deployment
 	err = store.UpdateStatus("non-existent", deployment.Completed)
-	if err != ErrDeploymentNotFound {
+	if err != deployment.ErrDeploymentNotFound {
 		t.Errorf("Expected ErrDeploymentNotFound, got %v", err)
 	}
 }
@@ -200,7 +209,7 @@ func TestDeploymentStore_Delete(t *testing.T) {
 	store := NewDeploymentStore()
 
 	req := deployment.DeploymentRequest{CodeVersion: "v1.0.0"}
-	store.Save(req)
+	store.Save(&req)
 
 	if store.Count() != 1 {
 		t.Fatalf("Expected 1 deployment, got %d", store.Count())

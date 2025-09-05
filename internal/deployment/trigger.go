@@ -12,6 +12,7 @@ var (
 
 type Store interface {
 	Save(req *DeploymentRequest) error
+	GetByStatus(status DeploymentStatus) ([]*DeploymentRecord, error)
 }
 
 type TriggerService struct {
@@ -39,16 +40,27 @@ func (s *TriggerService) TriggerDeployment(req *DeploymentRequest) error {
 		return err
 	}
 
-	// Feature Request: If a deployment rollout is in progress, a new deployment rollout cannot start
-	if s.isRolloutInProgress(req) {
+	// 1. Feature Request: If a deployment rollout is in progress, a new deployment rollout cannot start
+	if s.isRolloutInProgress() {
 		return ErrRolloutInProgress
 	}
 
-	// Save the deployment request to the store
-	return s.store.Save(req)
+	// 2. Save the deployment request
+	if err := s.store.Save(req); err != nil {
+		return err
+	}
+
+	// 3. trigger the deployment
+
+
+	return nil
 }
 
-func (s *TriggerService) isRolloutInProgress(req *DeploymentRequest) bool {
-	// TODO: Implement logic to check if a rollout is in progress for the given request
-	return false
+func (s *TriggerService) isRolloutInProgress() bool {
+	runningDeployments, err := s.store.GetByStatus(Running)
+	if err != nil {
+		return false
+	}
+
+	return len(runningDeployments) > 0
 }

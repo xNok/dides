@@ -8,32 +8,40 @@ import (
 	"github.com/xnok/dides/internal/deployment"
 )
 
+// deploymentEntry represents an internal storage entry with metadata
+type deploymentEntry struct {
+	ID        string
+	Record    *deployment.DeploymentRecord
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// DeploymentRecordWithID extends deployment.DeploymentRecord with ID and timestamps
+type DeploymentRecordWithID struct {
+	ID        string                      `json:"id"`
+	Request   deployment.DeploymentRequest `json:"request"`
+	Status    deployment.DeploymentStatus `json:"status"`
+	CreatedAt time.Time                   `json:"created_at"`
+	UpdatedAt time.Time                   `json:"updated_at"`
+}
+
 // DeploymentStore is an in-memory implementation of the deployment.Store interface
 type DeploymentStore struct {
 	mu          sync.RWMutex
-	deployments map[string]*DeploymentRecord // key is deployment ID
+	deployments map[string]*deploymentEntry // key is deployment ID
 	nextID      int
-}
-
-// DeploymentRecord represents a stored deployment with metadata
-type DeploymentRecord struct {
-	ID        string                       `json:"id"`
-	Request   deployment.DeploymentRequest `json:"request"`
-	Status    deployment.DeploymentStatus  `json:"status"`
-	CreatedAt time.Time                    `json:"created_at"`
-	UpdatedAt time.Time                    `json:"updated_at"`
 }
 
 // NewDeploymentStore creates a new in-memory deployment store
 func NewDeploymentStore() *DeploymentStore {
 	return &DeploymentStore{
-		deployments: make(map[string]*DeploymentRecord),
+		deployments: make(map[string]*deploymentEntry),
 		nextID:      1,
 	}
 }
 
 // Save stores a deployment request in memory and returns the deployment ID
-func (s *DeploymentStore) Save(req deployment.DeploymentRequest) error {
+func (s *DeploymentStore) Save(req *deployment.DeploymentRequest) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -41,73 +49,88 @@ func (s *DeploymentStore) Save(req deployment.DeploymentRequest) error {
 	id := s.generateID()
 
 	now := time.Now()
-	record := &DeploymentRecord{
-		ID:        id,
-		Request:   req,
-		Status:    deployment.Pending, // Start with Pending status
+	entry := &deploymentEntry{
+		ID: id,
+		Record: &deployment.DeploymentRecord{
+			Request: *req,
+			Status:  deployment.Running,
+		},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 
-	s.deployments[id] = record
+	s.deployments[id] = entry
 	return nil
 }
 
 // Get retrieves a deployment by ID
-func (s *DeploymentStore) Get(id string) (*DeploymentRecord, bool) {
+func (s *DeploymentStore) Get(id string) (*DeploymentRecordWithID, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	record, exists := s.deployments[id]
+	entry, exists := s.deployments[id]
 	if !exists {
 		return nil, false
 	}
 
 	// Return a copy to prevent external modifications
-	recordCopy := *record
-	return &recordCopy, true
+	record := &DeploymentRecordWithID{
+		ID:        entry.ID,
+		Request:   entry.Record.Request,
+		Status:    entry.Record.Status,
+		CreatedAt: entry.CreatedAt,
+		UpdatedAt: entry.UpdatedAt,
+	}
+	return record, true
 }
 
 // GetAll returns all stored deployments
-func (s *DeploymentStore) GetAll() []*DeploymentRecord {
+func (s *DeploymentStore) GetAll() []*DeploymentRecordWithID {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	records := make([]*DeploymentRecord, 0, len(s.deployments))
-	for _, record := range s.deployments {
+	records := make([]*DeploymentRecordWithID, 0, len(s.deployments))
+	for _, entry := range s.deployments {
 		// Return copies to prevent external modifications
-		recordCopy := *record
-		records = append(records, &recordCopy)
+		record := &DeploymentRecordWithID{
+			ID:        entry.ID,
+			Request:   entry.Record.Request,
+			Status:    entry.Record.Status,
+			CreatedAt: entry.CreatedAt,
+			UpdatedAt: entry.UpdatedAt,
+		}
+		records = append(records, record)
 	}
 
 	return records
 }
 
 // GetByStatus returns all deployments with the specified status
-func (s *DeploymentStore) GetByStatus(status deployment.DeploymentStatus) []*DeploymentRecord {
+func (s *DeploymentStore) GetByStatus(status deployment.DeploymentStatus) ([]*deployment.DeploymentRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var matches []*DeploymentRecord
-	for _, record := range s.deployments {
-		if record.Status == status {
-			recordCopy := *record
+	var matches []*deployment.DeploymentRecord
+	for _, entry := range s.deployments {
+		if entry.Record.Status == status {
+			// Return a copy to prevent external modifications
+			recordCopy := *entry.Record
 			matches = append(matches, &recordCopy)
 		}
 	}
 
-	return matches
+	return matches, nil
 }
 
 // GetByLabels returns deployments that match all provided labels
-func (s *DeploymentStore) GetByLabels(labels map[string]string) []*DeploymentRecord {
+func (s *DeploymentStore) GetByLabels(labels map[string]string) []*deployment.DeploymentRecord {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var matches []*DeploymentRecord
-	for _, record := range s.deployments {
-		if s.matchesLabels(record, labels) {
-			recordCopy := *record
+	var matches []*deployment.DeploymentRecord
+	for _, entry := range s.deployments {
+		if s.matchesLabels(entry, labels) {
+			recordCopy := *entry.Record
 			matches = append(matches, &recordCopy)
 		}
 	}
@@ -120,14 +143,14 @@ func (s *DeploymentStore) UpdateStatus(id string, status deployment.DeploymentSt
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	record, exists := s.deployments[id]
+	entry, exists := s.deployments[id]
 	if !exists {
 		return deployment.ErrDeploymentNotFound
 	}
 
 	// Update status and timestamp
-	record.Status = status
-	record.UpdatedAt = time.Now()
+	entry.Record.Status = status
+	entry.UpdatedAt = time.Now()
 
 	return nil
 }
@@ -161,13 +184,13 @@ func (s *DeploymentStore) generateID() string {
 }
 
 // matchesLabels checks if a deployment has all the specified labels
-func (s *DeploymentStore) matchesLabels(record *DeploymentRecord, labels map[string]string) bool {
-	if record.Request.Labels == nil {
+func (s *DeploymentStore) matchesLabels(entry *deploymentEntry, labels map[string]string) bool {
+	if entry.Record.Request.Labels == nil {
 		return len(labels) == 0
 	}
 
 	for key, value := range labels {
-		if recordValue, exists := record.Request.Labels[key]; !exists || recordValue != value {
+		if recordValue, exists := entry.Record.Request.Labels[key]; !exists || recordValue != value {
 			return false
 		}
 	}

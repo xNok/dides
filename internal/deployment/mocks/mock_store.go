@@ -34,6 +34,21 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
+// GetByStatus mocks base method.
+func (m *MockStore) GetByStatus(status deployment.DeploymentStatus) ([]*deployment.DeploymentRecord, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByStatus", status)
+	ret0, _ := ret[0].([]*deployment.DeploymentRecord)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByStatus indicates an expected call of GetByStatus.
+func (mr *MockStoreMockRecorder) GetByStatus(status interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByStatus", reflect.TypeOf((*MockStore)(nil).GetByStatus), status)
+}
+
 // Save mocks base method.
 func (m *MockStore) Save(req *deployment.DeploymentRequest) error {
 	m.ctrl.T.Helper()

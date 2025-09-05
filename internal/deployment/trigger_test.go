@@ -21,7 +21,9 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 		Labels:               map[string]string{"env": "prod"},
 	}
 
-	// Set expectation: Save should be called once with the request and return nil
+	// Set expectations: GetByStatus should be called to check for running deployments
+	mockStore.EXPECT().GetByStatus(deployment.Running).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
+	// Save should be called once with the request and return nil
 	mockStore.EXPECT().Save(&req).Return(nil).Times(1)
 
 	err := service.TriggerDeployment(&req)
@@ -42,8 +44,7 @@ func TestTriggerService_TriggerDeployment_EmptyCodeVersion(t *testing.T) {
 		Labels:      map[string]string{"env": "prod"},
 	}
 
-	// Save should NOT be called since validation should fail
-	mockStore.EXPECT().Save(gomock.Any()).Times(0)
+	// No expectations since validation should fail before any store calls
 
 	err := service.TriggerDeployment(&req)
 	if err != deployment.ErrInvalidDeploymentRequest {
@@ -63,7 +64,9 @@ func TestTriggerService_TriggerDeployment_StoreError(t *testing.T) {
 		Labels:      map[string]string{"env": "test"},
 	}
 
-	// Set expectation: Save should be called and return an error
+	// Set expectations: GetByStatus should be called to check for running deployments
+	mockStore.EXPECT().GetByStatus(deployment.Running).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
+	// Save should be called and return an error
 	mockStore.EXPECT().Save(&req).Return(deployment.ErrInvalidDeploymentRequest).Times(1)
 
 	err := service.TriggerDeployment(&req)
