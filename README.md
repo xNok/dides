@@ -21,6 +21,16 @@ go run ./cmd/controller/main.go
 - `POST /deploy/progress` - Manually progress deployment
 - `POST /deploy/rollback` - Manually trigger rollback
 
+### Assumptions made, design decisions, notes, thoughts etc
+
+* Decouple Inventory and Instance update from the deployment management
+  * Applying updates can be slow or unreliable thus it is better to get the big picture each time we decide to progress the deployment
+  * Instance updates can have a high throughput while deployment need to progress at steady pace
+* Introduce the concept of `DeploymentStrategy` to support for different deployment strategies (canary, percentage rollout, etc.)
+  * The `DeploymentTrigger` delegate the `desired_state` updates to the `DeploymentStrategy`
+* Use semantic version instead of `SHA1 hashes` as it makes test more readable while not changing the logic (aka. `SHA1 hashes` can still be used)
+* 
+
 ## Implemented vs. Skipped
 
 This application provides:
