@@ -2,6 +2,8 @@
 
 Distributed deployment system that safely rolls out updates across many service instances.
 
+![](./dides.png)
+
 ## How to Run the System
 
 ```
