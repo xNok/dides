@@ -53,14 +53,16 @@ func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
 	// 6. Start the first batch of deployments
 	currentBatch := instances
 	record.Progress.CurrentBatch = make([]string, len(currentBatch))
-	record.Progress.InProgressInstances = len(currentBatch)
 
 	// 7. Update desired state for instances in the current batch
 	for i, instance := range currentBatch {
-		record.Progress.CurrentBatch[i] = instance.Name
 		if err := s.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
 			return err
 		}
+
+		// update record if state was updated
+		record.Progress.CurrentBatch[i] = instance.Name
+		record.Progress.InProgressInstances++
 	}
 
 	// Update the deployment record with progress
@@ -89,6 +91,14 @@ func (s *TriggerService) ProgressDeployment(ctx context.Context) (*DeploymentRec
 	}
 
 	// 2. Compute the next update
+
+	// 2.0 How many have failed if failed > max_failures then store and rollback
+
+	// 2.1 How many of the current batch are done
+
+	// 2.2 Get the next batch batch_size - inflight
+
+	// 2.3 Update the state for next batch
 
 	return record[0], nil
 }
