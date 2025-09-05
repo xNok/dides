@@ -56,3 +56,8 @@ func (s *StateService) CountCompleted(labels map[string]string, desiredState Sta
 func (s *StateService) CountFailed(labels map[string]string, desiredState State) (int, error) {
 	return s.store.CountFailed(labels, desiredState)
 }
+
+// CountInProgress returns the count of instances that match labels and are currently being updated
+func (s *StateService) CountInProgress(labels map[string]string, desiredState State) (int, error) {
+	return s.store.CountInProgress(labels, desiredState)
+}

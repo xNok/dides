@@ -22,10 +22,12 @@ type InventoryService interface {
 
 	// CountByLabels returns the total number of instances that match the given labels
 	CountByLabels(labels map[string]string) int
-	// CountNeedingUpdate returns the total number of instances that need to be updated
+	// CountNeedingUpdate returns the total number of instances that need to be updated (haven't been started yet)
 	CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error)
 	// GetNeedingUpdate returns instances that need to be updated (options can limit the number of results for batching)
 	GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error)
+	// CountInProgress returns the total number of instances currently being updated (desiredState == targetState but currentState != desiredState)
+	CountInProgress(labels map[string]string, desiredState inventory.State) (int, error)
 	// CountCompleted returns the total number of instances that have completed the update
 	CountCompleted(labels map[string]string, desiredState inventory.State) (int, error)
 	// CountFailed returns the total number of instances that have failed the update
@@ -105,8 +107,8 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	}
 
 	// ------------------------------------------------------
-    // State Refresh Logic
-    // ------------------------------------------------------
+	// State Refresh Logic
+	// ------------------------------------------------------
 
 	// 1. Check number of failed instances and update record
 	failed, err := rd.inventory.CountFailed(record.Request.Labels, desiredState)
@@ -120,21 +122,22 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 		return nil, err
 	}
 
-	progress, err := rd.inventory.CountNeedingUpdate(record.Request.Labels, desiredState)
+	// 3. How many are still in progress (desiredState == targetState but currentState != desiredState)?
+	inProgress, err := rd.inventory.CountInProgress(record.Request.Labels, desiredState)
 	if err != nil {
 		return nil, err
 	}
 
 	record.Progress.FailedInstances = failed
 	record.Progress.CompletedInstances = completed
-	record.Progress.InProgressInstances = progress
+	record.Progress.InProgressInstances = inProgress
 
 	// ------------------------------------------------------
-    // State Update Logic
-    // ------------------------------------------------------
+	// State Update Logic
+	// ------------------------------------------------------
 
 	// 1. If failure threshold exceeded, trigger rollback
-	if failed > record.Request.Configuration.FailureThreshold {
+	if failed >= record.Request.Configuration.FailureThreshold {
 		if err := rd.RollbackDeployment(record); err != nil {
 			return nil, err
 		}
@@ -151,7 +154,7 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	}
 
 	// 3. If the current batch is still in progress, wait
-	if progress == record.Request.Configuration.BatchSize {
+	if inProgress == record.Request.Configuration.BatchSize {
 		return record, rd.store.Update(record)
 	}
 

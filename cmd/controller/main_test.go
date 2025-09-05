@@ -75,6 +75,10 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	}
 	t.Logf("Successfully retrieved %d instances after updates", len(updatedInstances))
 
+	// ------------------------------------------------------
+	// Simulate Deployment Logic
+	// ------------------------------------------------------
+
 	// 4. Trigger a deployment
 	deploymentRequest := testData.CreateDeploymentRequest(
 		"v2.0.0",
@@ -100,7 +104,7 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, deployResp.StatusCode)
 
 	// Wait for the deployment to progress
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	// 6. Deployment is in progress - batch size need to be respected
 	deployments, deploymentResp := testUtils.GetAllDeployments(t)
@@ -108,12 +112,7 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, 1, deployments.Count)
 
 	updatedInstances = testUtils.GetAllInstances(t)
-	var inflight []string
-	for _, instance := range updatedInstances {
-		if instance.DesiredState.CodeVersion == "v2.0.0" {
-			inflight = append(inflight, instance.Name)
-		}
-	}
+	inflight := getInflightInstances(updatedInstances, "v2.0.0")
 	assert.Equal(t, 2, len(inflight))
 
 	// 7. Progress the deployment - nothing should happen yet (instances haven't updated their current state)
@@ -127,9 +126,97 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 		testUtils.UpdateInstance(t, inflight[i], testData.CreateHealthyUpdate("v2.0.0", "config-v2"))
 	}
 
-	// Wait for the deployment to progress
-	time.Sleep(500 * time.Millisecond)
-	_, progressResp = testUtils.ProgressDeployment(t)
+	// 8.1 Progress the deployment to the next step
+	progress, progressResp = testUtils.ProgressDeployment(t)
 	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
+	assert.Equal(t, deployment.Running, progress.Status)
+	assert.Equal(t, deployment.DeploymentProgress{
+		TotalInstances:      3,
+		CompletedInstances:  2,
+		InProgressInstances: 1,
+		FailedInstances:     0,
+	}, progress.Progress)
 
+	// Wait for the deployment to progress
+	time.Sleep(100 * time.Millisecond)
+
+	updatedInstances = testUtils.GetAllInstances(t)
+	inflight = getInflightInstances(updatedInstances, "v2.0.0")
+	assert.Equal(t, 1, len(inflight))
+
+	// 9. instance report their status
+	for i := range inflight {
+		testUtils.UpdateInstance(t, inflight[i], testData.CreateHealthyUpdate("v2.0.0", "config-v2"))
+	}
+
+	// Wait for the deployment to progress
+	progress, progressResp = testUtils.ProgressDeployment(t)
+	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
+	assert.Equal(t, deployment.Completed, progress.Status)
+	assert.Equal(t, deployment.DeploymentProgress{
+		TotalInstances:      3,
+		CompletedInstances:  3,
+		InProgressInstances: 0,
+		FailedInstances:     0,
+	}, progress.Progress)
+
+	// ------------------------------------------------------
+	// Simulate Deployment With Failures
+	// ------------------------------------------------------
+
+	// 10. Trigger a deployment with one instance failing
+	deploymentRequest = testData.CreateDeploymentRequest(
+		"v3.0.0",
+		"config-v3",
+		map[string]string{
+			"env": "production",
+		},
+	)
+
+	deployResp = testUtils.TriggerDeployment(t, deploymentRequest)
+	assert.Equal(t, http.StatusCreated, deployResp.StatusCode)
+	t.Logf("Successfully triggered deployment for version %s", deploymentRequest.CodeVersion)
+
+	// Wait for the deployment to progress
+	time.Sleep(100 * time.Millisecond)
+
+	deployments, deploymentResp = testUtils.GetAllDeployments(t)
+	assert.Equal(t, http.StatusOK, deploymentResp.StatusCode)
+	assert.Equal(t, 1, deployments.Count)
+
+	updatedInstances = testUtils.GetAllInstances(t)
+	inflight = getInflightInstances(updatedInstances, "v3.0.0")
+	assert.Equal(t, 2, len(inflight))
+
+	// 11. Progress the deployment - nothing should happen yet (instances haven't updated their current state)
+	progress, progressResp = testUtils.ProgressDeployment(t)
+	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
+	assert.Equal(t, deployment.Running, progress.Status)
+	t.Logf("Successfully progressed deployment. Status: %v, Progress: %+v", progress.Status, progress.Progress)
+
+	// 12. instance report their status - one fails
+	testUtils.UpdateInstance(t, inflight[0], testData.CreateHealthyUpdate("v3.0.0", "config-v3"))
+	testUtils.UpdateInstance(t, inflight[1], testData.CreateFailedUpdate("v3.0.0", "config-v3"))
+
+	// 12.1 Progress the deployment to the next step - should trigger a rollback
+	progress, progressResp = testUtils.ProgressDeployment(t)
+	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
+	assert.Equal(t, deployment.Failed, progress.Status)
+	assert.Equal(t, deployment.DeploymentProgress{
+		TotalInstances:      3,
+		CompletedInstances:  1, // 1 successful
+		InProgressInstances: 0, // Deployment failed, no more instances being processed
+		FailedInstances:     1,
+	}, progress.Progress)
+
+}
+
+func getInflightInstances(instances []*inventory.Instance, targetVersion string) []string {
+	var inflight []string
+	for _, instance := range instances {
+		if instance.DesiredState.CodeVersion == targetVersion && instance.CurrentState.CodeVersion != targetVersion {
+			inflight = append(inflight, instance.Name)
+		}
+	}
+	return inflight
 }

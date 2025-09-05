@@ -67,13 +67,18 @@ POST /deploy
 
 The system only accept one in flight deployment at the time.
 
-## Deployment Process (after a trigger)
+## Deployment Progress (after a trigger)
 
-Once a deployment is trigger the coordinatoor update the desired state (`code_version`, `configuration_version`) for up to `max_inflight` instances and motior the progress of the deployment with the instances heartbeat.
+Once a deployment is trigger the coordinatoor update the desired state (`code_version`, `configuration_version`) for up to `batch_size` instances and motior the progress of the deployment with the instances heartbeat.
 
-Once 1 instance report `HEALTHY` and `code_version == target_code_version` then the deployment progress by updating the `target_code_version` for one of the remaining instances.
+Once 1 instances report `HEALTHY` and `code_version == target_code_version` then the deployment progress by updating the `target_code_version` for one of the remaining instances. The update process can be automated using a reconcilliation interval. However to provide simple way of testing the implication we can ise the following endpoint.
 
-In the best case scenario all intances eventualled report `HEALTHY` and `code_version == target_code_version`. Then the eployment status is marked as completed.
+```
+POST /deploy/progress
+{}
+```
 
-Failure scenarios:
-* 
+In the best case scenario all intances eventualled report `HEALTHY` and `current_state == desired_state`. Then the eployment status is marked as completed.
+
+
+### Reconcillation Loop

@@ -260,10 +260,31 @@ func (s *InventoryStore) CountFailed(labels map[string]string, desiredState inve
 	return count, nil
 }
 
+// CountInProgress returns the count of instances that match labels and are currently being updated
+// (desiredState == targetState but currentState != desiredState)
+func (s *InventoryStore) CountInProgress(labels map[string]string, desiredState inventory.State) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	count := 0
+	for _, instance := range s.instances {
+		if s.matchesLabels(instance, labels) && s.isInProgress(instance, desiredState) {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
 // isCompleted checks if an instance has completed the update to the desired state
+// This includes both successful completions and failed attempts
 func (s *InventoryStore) isCompleted(instance *inventory.Instance, desiredState inventory.State) bool {
-	return instance.CurrentState.CodeVersion == desiredState.CodeVersion &&
-		instance.CurrentState.ConfigurationVersion == desiredState.ConfigurationVersion
+	// Successfully completed: current state matches desired state
+	successfullyCompleted := instance.CurrentState.CodeVersion == desiredState.CodeVersion &&
+		instance.CurrentState.ConfigurationVersion == desiredState.ConfigurationVersion &&
+		instance.Status == inventory.HEALTHY
+
+	return successfullyCompleted
 }
 
 // isFailed checks if an instance has failed the update to the desired state
@@ -272,6 +293,21 @@ func (s *InventoryStore) isFailed(instance *inventory.Instance, desiredState inv
 	return instance.DesiredState.CodeVersion == desiredState.CodeVersion &&
 		instance.DesiredState.ConfigurationVersion == desiredState.ConfigurationVersion &&
 		instance.Status == inventory.FAILED
+}
+
+// isInProgress checks if an instance is currently being updated
+// An instance is in progress if: desiredState == targetState but currentState != desiredState
+func (s *InventoryStore) isInProgress(instance *inventory.Instance, desiredState inventory.State) bool {
+	// Check if the instance has been told to update to the target state
+	hasDesiredState := instance.DesiredState.CodeVersion == desiredState.CodeVersion &&
+		instance.DesiredState.ConfigurationVersion == desiredState.ConfigurationVersion
+
+	// Check if the instance hasn't finished updating yet
+	needsUpdate := instance.CurrentState.CodeVersion != desiredState.CodeVersion ||
+		instance.CurrentState.ConfigurationVersion != desiredState.ConfigurationVersion
+
+	// Instance is in progress if it has the desired state but still needs to update its current state
+	return hasDesiredState && needsUpdate
 }
 
 // needsUpdate checks if an instance needs an update based on desired state

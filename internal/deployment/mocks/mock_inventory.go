@@ -78,6 +78,21 @@ func (mr *MockInventoryServiceMockRecorder) CountFailed(labels, desiredState int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountFailed", reflect.TypeOf((*MockInventoryService)(nil).CountFailed), labels, desiredState)
 }
 
+// CountInProgress mocks base method.
+func (m *MockInventoryService) CountInProgress(labels map[string]string, desiredState inventory.State) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountInProgress", labels, desiredState)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountInProgress indicates an expected call of CountInProgress.
+func (mr *MockInventoryServiceMockRecorder) CountInProgress(labels, desiredState interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountInProgress", reflect.TypeOf((*MockInventoryService)(nil).CountInProgress), labels, desiredState)
+}
+
 // CountNeedingUpdate mocks base method.
 func (m *MockInventoryService) CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error) {
 	m.ctrl.T.Helper()
