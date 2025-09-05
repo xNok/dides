@@ -108,13 +108,13 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, 1, deployments.Count)
 
 	updatedInstances = testUtils.GetAllInstances(t)
-	var updatedCount int
+	var inflight []string
 	for _, instance := range updatedInstances {
 		if instance.DesiredState.CodeVersion == "v2.0.0" {
-			updatedCount++
+			inflight = append(inflight, instance.Name)
 		}
 	}
-	assert.Equal(t, 2, updatedCount)
+	assert.Equal(t, 2, len(inflight))
 
 	// 7. Progress the deployment - nothing should happen yet (instances haven't updated their current state)
 	progress, progressResp := testUtils.ProgressDeployment(t)
@@ -123,8 +123,8 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	t.Logf("Successfully progressed deployment. Status: %v, Progress: %+v", progress.Status, progress.Progress)
 
 	// 8. instance report their status
-	for i := range progress.Progress.CurrentBatch {
-		testUtils.UpdateInstance(t, registeredNames[i], testData.CreateHealthyUpdate("v2.0.0", "config-v2"))
+	for i := range inflight {
+		testUtils.UpdateInstance(t, inflight[i], testData.CreateHealthyUpdate("v2.0.0", "config-v2"))
 	}
 
 	// Wait for the deployment to progress

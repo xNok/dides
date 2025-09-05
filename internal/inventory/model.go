@@ -81,4 +81,6 @@ type Store interface {
 	CountNeedingUpdate(labels map[string]string, desiredState State) (int, error)
 	// CountCompleted returns the total number of instances that have completed the update to the desired state
 	CountCompleted(labels map[string]string, desiredState State) (int, error)
+	// CountFailed returns the total number of instances that have failed the update to the desired state
+	CountFailed(labels map[string]string, desiredState State) (int, error)
 }

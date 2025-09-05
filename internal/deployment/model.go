@@ -46,8 +46,6 @@ type DeploymentProgress struct {
 	CompletedInstances int `json:"completed_instances"`
 	// Number of instances that failed to update
 	FailedInstances int `json:"failed_instances"`
-	// Instances currently in the active batch
-	CurrentBatch []string `json:"current_batch"`
 }
 
 // DeploymentProgressResponse represents the response from progressing a deployment

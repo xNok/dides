@@ -12,6 +12,8 @@ type RollingDeployment struct {
 	inventory InventoryService
 }
 
+//go:generate mockgen -source=rolling_deployment.go -destination=mocks/mock_inventory.go -package=mocks
+
 type InventoryService interface {
 	// GetInstancesByLabels returns instances that match the given labels
 	GetInstancesByLabels(labels map[string]string) ([]*inventory.Instance, error)
@@ -26,6 +28,8 @@ type InventoryService interface {
 	GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error)
 	// CountCompleted returns the total number of instances that have completed the update
 	CountCompleted(labels map[string]string, desiredState inventory.State) (int, error)
+	// CountFailed returns the total number of instances that have failed the update
+	CountFailed(labels map[string]string, desiredState inventory.State) (int, error)
 }
 
 // NewRollingDeployment creates a new rolling deployment strategy
@@ -56,7 +60,6 @@ func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
 		InProgressInstances: 0,
 		CompletedInstances:  0,
 		FailedInstances:     0,
-		CurrentBatch:        make([]string, 0),
 	}
 
 	// 4. Get instances that match the deployment labels AND need updates
@@ -77,17 +80,15 @@ func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
 
 	// 6. Start the first batch of deployments
 	currentBatch := instances
-	record.Progress.CurrentBatch = make([]string, len(currentBatch))
 
 	// 7. Update desired state for instances in the current batch
 	// TODO: Consider using UpdateMany such that it can be done in a transaction (so it can be rolled back)
-	for i, instance := range currentBatch {
+	for _, instance := range currentBatch {
 		if err := rd.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
 			return err
 		}
 
 		// update record if state was updated
-		record.Progress.CurrentBatch[i] = instance.Name
 		record.Progress.InProgressInstances++
 	}
 
@@ -104,7 +105,11 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	}
 
 	// 2. Check if failure threshold exceeded
-	if rd.IsFailureThresholdExceeded(record) {
+	shouldRollback, err := rd.checkFailureThreshold(record, desiredState)
+	if err != nil {
+		return nil, err
+	}
+	if shouldRollback {
 		if err := rd.RollbackDeployment(record); err != nil {
 			return nil, err
 		}
@@ -122,14 +127,42 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 		record.Status = Completed
 		record.Progress.CompletedInstances = completed
 		record.Progress.InProgressInstances = 0
-		record.Progress.CurrentBatch = nil
 		return record, rd.store.Update(record)
+	} else {
+		record.Progress.CompletedInstances = completed
+		record.Progress.InProgressInstances = record.Progress.TotalInstances - completed - record.Progress.FailedInstances
 	}
 
-	// TODO: 4. Get the next batch batch_size - inflight
-	// TODO: 5. Update the state for next batch
+	// TODO: 4. Get the next batch = batch_size - inflight
+	opts := &inventory.GetNeedingUpdateOptions{
+		Limit: record.Request.Configuration.BatchSize - record.Progress.InProgressInstances,
+	}
+	instances, err := rd.inventory.GetNeedingUpdate(record.Request.Labels, desiredState, opts)
+	if err != nil {
+		return record, err
+	}
 
-	return record, nil
+	// 5. Update the state for next batch
+	for _, instance := range instances {
+		if err := rd.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
+			return record, err
+		}
+		record.Progress.InProgressInstances++
+	}
+
+	return record, rd.store.Update(record)
+}
+
+// checkFailureThreshold checks if the deployment has exceeded failure limits and updates progress
+func (rd *RollingDeployment) checkFailureThreshold(record *DeploymentRecord, desiredState inventory.State) (bool, error) {
+	failed, err := rd.inventory.CountFailed(record.Request.Labels, desiredState)
+	if err != nil {
+		return false, err
+	}
+
+	record.Progress.FailedInstances = failed
+
+	return failed > record.Request.Configuration.FailureThreshold, nil
 }
 
 // IsFailureThresholdExceeded checks if the deployment has exceeded failure limits

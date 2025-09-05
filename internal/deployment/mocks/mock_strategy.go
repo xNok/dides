@@ -35,20 +35,6 @@ func (m *MockDeploymentStrategy) EXPECT() *MockDeploymentStrategyMockRecorder {
 	return m.recorder
 }
 
-// IsFailureThresholdExceeded mocks base method.
-func (m *MockDeploymentStrategy) IsFailureThresholdExceeded(record *deployment.DeploymentRecord) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsFailureThresholdExceeded", record)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsFailureThresholdExceeded indicates an expected call of IsFailureThresholdExceeded.
-func (mr *MockDeploymentStrategyMockRecorder) IsFailureThresholdExceeded(record interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsFailureThresholdExceeded", reflect.TypeOf((*MockDeploymentStrategy)(nil).IsFailureThresholdExceeded), record)
-}
-
 // ProgressDeployment mocks base method.
 func (m *MockDeploymentStrategy) ProgressDeployment(ctx context.Context, record *deployment.DeploymentRecord) (*deployment.DeploymentRecord, error) {
 	m.ctrl.T.Helper()

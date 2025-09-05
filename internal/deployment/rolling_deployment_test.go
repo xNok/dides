@@ -151,9 +151,6 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 			if r.Progress.InProgressInstances != 2 {
 				t.Errorf("Expected 2 in-progress instances, got %d", r.Progress.InProgressInstances)
 			}
-			if len(r.Progress.CurrentBatch) != 2 {
-				t.Errorf("Expected 2 instances in current batch, got %d", len(r.Progress.CurrentBatch))
-			}
 			return nil
 		}).Times(1)
 
@@ -262,7 +259,6 @@ func TestTriggerService_ProgressDeployment(t *testing.T) {
 				TotalInstances:      10,
 				InProgressInstances: 2,
 				CompletedInstances:  8,
-				CurrentBatch:        []string{"instance-9", "instance-10"},
 			},
 		}
 
@@ -289,7 +285,3 @@ func TestTriggerService_ProgressDeployment(t *testing.T) {
 		}
 	})
 }
-
-// Note: maxFailuresExceeded and rollbackDeployment are private methods and are tested indirectly
-// through ProgressDeployment when they are properly implemented.
-// Currently maxFailuresExceeded always returns false and rollbackDeployment is a no-op.

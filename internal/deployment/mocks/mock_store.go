@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	deployment "github.com/xnok/dides/internal/deployment"
-	inventory "github.com/xnok/dides/internal/inventory"
 )
 
 // MockStore is a mock of Store interface.
@@ -77,117 +76,6 @@ func (m *MockStore) Update(record *deployment.DeploymentRecord) error {
 func (mr *MockStoreMockRecorder) Update(record interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockStore)(nil).Update), record)
-}
-
-// MockInventoryService is a mock of InventoryService interface.
-type MockInventoryService struct {
-	ctrl     *gomock.Controller
-	recorder *MockInventoryServiceMockRecorder
-}
-
-// MockInventoryServiceMockRecorder is the mock recorder for MockInventoryService.
-type MockInventoryServiceMockRecorder struct {
-	mock *MockInventoryService
-}
-
-// NewMockInventoryService creates a new mock instance.
-func NewMockInventoryService(ctrl *gomock.Controller) *MockInventoryService {
-	mock := &MockInventoryService{ctrl: ctrl}
-	mock.recorder = &MockInventoryServiceMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockInventoryService) EXPECT() *MockInventoryServiceMockRecorder {
-	return m.recorder
-}
-
-// CountByLabels mocks base method.
-func (m *MockInventoryService) CountByLabels(labels map[string]string) int {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CountByLabels", labels)
-	ret0, _ := ret[0].(int)
-	return ret0
-}
-
-// CountByLabels indicates an expected call of CountByLabels.
-func (mr *MockInventoryServiceMockRecorder) CountByLabels(labels interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByLabels", reflect.TypeOf((*MockInventoryService)(nil).CountByLabels), labels)
-}
-
-// CountCompleted mocks base method.
-func (m *MockInventoryService) CountCompleted(labels map[string]string, desiredState inventory.State) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CountCompleted", labels, desiredState)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CountCompleted indicates an expected call of CountCompleted.
-func (mr *MockInventoryServiceMockRecorder) CountCompleted(labels, desiredState interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountCompleted", reflect.TypeOf((*MockInventoryService)(nil).CountCompleted), labels, desiredState)
-}
-
-// CountNeedingUpdate mocks base method.
-func (m *MockInventoryService) CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CountNeedingUpdate", labels, desiredState)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CountNeedingUpdate indicates an expected call of CountNeedingUpdate.
-func (mr *MockInventoryServiceMockRecorder) CountNeedingUpdate(labels, desiredState interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountNeedingUpdate", reflect.TypeOf((*MockInventoryService)(nil).CountNeedingUpdate), labels, desiredState)
-}
-
-// GetInstancesByLabels mocks base method.
-func (m *MockInventoryService) GetInstancesByLabels(labels map[string]string) ([]*inventory.Instance, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInstancesByLabels", labels)
-	ret0, _ := ret[0].([]*inventory.Instance)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetInstancesByLabels indicates an expected call of GetInstancesByLabels.
-func (mr *MockInventoryServiceMockRecorder) GetInstancesByLabels(labels interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstancesByLabels", reflect.TypeOf((*MockInventoryService)(nil).GetInstancesByLabels), labels)
-}
-
-// GetNeedingUpdate mocks base method.
-func (m *MockInventoryService) GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNeedingUpdate", labels, desiredState, opts)
-	ret0, _ := ret[0].([]*inventory.Instance)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetNeedingUpdate indicates an expected call of GetNeedingUpdate.
-func (mr *MockInventoryServiceMockRecorder) GetNeedingUpdate(labels, desiredState, opts interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNeedingUpdate", reflect.TypeOf((*MockInventoryService)(nil).GetNeedingUpdate), labels, desiredState, opts)
-}
-
-// UpdateDesiredState mocks base method.
-func (m *MockInventoryService) UpdateDesiredState(instanceKey string, state inventory.State) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateDesiredState", instanceKey, state)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UpdateDesiredState indicates an expected call of UpdateDesiredState.
-func (mr *MockInventoryServiceMockRecorder) UpdateDesiredState(instanceKey, state interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDesiredState", reflect.TypeOf((*MockInventoryService)(nil).UpdateDesiredState), instanceKey, state)
 }
 
 // MockLocker is a mock of Locker interface.

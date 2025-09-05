@@ -10,9 +10,6 @@ type DeploymentStrategy interface {
 	// ProgressDeployment advances the deployment to the next stage
 	ProgressDeployment(ctx context.Context, record *DeploymentRecord) (*DeploymentRecord, error)
 
-	// IsFailureThresholdExceeded checks if the deployment has exceeded failure limits
-	IsFailureThresholdExceeded(record *DeploymentRecord) bool
-
 	// RollbackDeployment reverts a failed deployment
 	RollbackDeployment(record *DeploymentRecord) error
 }

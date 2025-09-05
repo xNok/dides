@@ -245,10 +245,33 @@ func (s *InventoryStore) CountCompleted(labels map[string]string, desiredState i
 	return count, nil
 }
 
+// CountFailed returns the count of instances that match labels and have failed the update to desired state
+func (s *InventoryStore) CountFailed(labels map[string]string, desiredState inventory.State) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	count := 0
+	for _, instance := range s.instances {
+		if s.matchesLabels(instance, labels) && s.isFailed(instance, desiredState) {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
 // isCompleted checks if an instance has completed the update to the desired state
 func (s *InventoryStore) isCompleted(instance *inventory.Instance, desiredState inventory.State) bool {
 	return instance.CurrentState.CodeVersion == desiredState.CodeVersion &&
 		instance.CurrentState.ConfigurationVersion == desiredState.ConfigurationVersion
+}
+
+// isFailed checks if an instance has failed the update to the desired state
+// An instance is considered failed if it has the desired state but status is FAILED
+func (s *InventoryStore) isFailed(instance *inventory.Instance, desiredState inventory.State) bool {
+	return instance.DesiredState.CodeVersion == desiredState.CodeVersion &&
+		instance.DesiredState.ConfigurationVersion == desiredState.ConfigurationVersion &&
+		instance.Status == inventory.FAILED
 }
 
 // needsUpdate checks if an instance needs an update based on desired state

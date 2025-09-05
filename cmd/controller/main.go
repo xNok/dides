@@ -12,7 +12,7 @@ import (
 	"github.com/xnok/dides/internal/inventory"
 )
 
-// TODO: rework handler instanciation and move to DI
+// TODO: rework router/handler instanciation and move to DI
 var (
 	registrationService *inventory.RegistrationService
 	updateService       *inventory.UpdateService
