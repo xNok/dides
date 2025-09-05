@@ -32,7 +32,7 @@ type InventoryService interface {
 	UpdateDesiredState(instanceKey string, state inventory.State) error
 	// Efficient methods for deployment logic
 	CountByLabels(labels map[string]string) int
-	GetNeedingUpdate(labels map[string]string, desiredState inventory.State) ([]*inventory.Instance, error)
+	GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error)
 	CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error)
 }
 

@@ -44,7 +44,8 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 		CodeVersion:          req.CodeVersion,
 		ConfigurationVersion: req.ConfigurationVersion,
 	}
-	mockInventory.EXPECT().GetNeedingUpdate(req.Labels, desiredState).Return([]*inventory.Instance{}, nil).Times(1)
+	mockInventory.EXPECT().GetNeedingUpdate(req.Labels, desiredState, gomock.Any()).Return([]*inventory.Instance{}, nil).Times(1)
+	mockInventory.EXPECT().CountNeedingUpdate(req.Labels, desiredState).Return(0, nil).Times(1)
 	mockStore.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
 
 	err := service.TriggerDeployment(ctx, &req)

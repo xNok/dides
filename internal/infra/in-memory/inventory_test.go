@@ -1,6 +1,7 @@
 package inmemory
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -351,7 +352,7 @@ func TestInventoryStore_GetNeedingUpdate(t *testing.T) {
 	}
 
 	// Get web instances needing update
-	instances, err := store.GetNeedingUpdate(map[string]string{"role": "web"}, desiredState)
+	instances, err := store.GetNeedingUpdate(map[string]string{"role": "web"}, desiredState, nil)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -363,6 +364,61 @@ func TestInventoryStore_GetNeedingUpdate(t *testing.T) {
 
 	if len(instances) > 0 && instances[0].Name != "web-1" {
 		t.Errorf("Expected web-1, got %s", instances[0].Name)
+	}
+}
+
+func TestInventoryStore_GetNeedingUpdateWithLimit(t *testing.T) {
+	store := NewInventoryStore()
+
+	// Create multiple instances that need updates
+	for i := 1; i <= 5; i++ {
+		instance := &inventory.Instance{
+			IP:     fmt.Sprintf("192.168.1.%d", 100+i),
+			Name:   fmt.Sprintf("web-%d", i),
+			Labels: map[string]string{"role": "web", "env": "prod"},
+			CurrentState: inventory.State{
+				CodeVersion:          "v1.0.0", // All need update
+				ConfigurationVersion: "config-v1.0",
+			},
+		}
+		store.Save(instance)
+	}
+
+	desiredState := inventory.State{
+		CodeVersion:          "v2.0.0",
+		ConfigurationVersion: "config-v1.0",
+	}
+
+	// Test with limit of 2
+	opts := &inventory.GetNeedingUpdateOptions{Limit: 2}
+	instances, err := store.GetNeedingUpdate(map[string]string{"role": "web"}, desiredState, opts)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(instances) != 2 {
+		t.Errorf("Expected 2 instances with limit, got %d", len(instances))
+	}
+
+	// Test without limit (should return all 5)
+	instances, err = store.GetNeedingUpdate(map[string]string{"role": "web"}, desiredState, nil)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(instances) != 5 {
+		t.Errorf("Expected 5 instances without limit, got %d", len(instances))
+	}
+
+	// Test with limit of 0 (should return all)
+	opts = &inventory.GetNeedingUpdateOptions{Limit: 0}
+	instances, err = store.GetNeedingUpdate(map[string]string{"role": "web"}, desiredState, opts)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(instances) != 5 {
+		t.Errorf("Expected 5 instances with limit 0, got %d", len(instances))
 	}
 }
 

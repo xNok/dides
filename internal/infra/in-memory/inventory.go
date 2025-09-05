@@ -190,15 +190,25 @@ func (s *InventoryStore) CountByLabels(labels map[string]string) int {
 }
 
 // GetNeedingUpdate returns instances that match labels and need state updates
-func (s *InventoryStore) GetNeedingUpdate(labels map[string]string, desiredState inventory.State) ([]*inventory.Instance, error) {
+func (s *InventoryStore) GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	var matches []*inventory.Instance
+	maxResults := -1 // Default: no limit
+	if opts != nil && opts.Limit > 0 {
+		maxResults = opts.Limit
+	}
+
 	for _, instance := range s.instances {
 		if s.matchesLabels(instance, labels) && s.needsUpdate(instance, desiredState) {
 			instanceCopy := *instance
 			matches = append(matches, &instanceCopy)
+
+			// Check if we've reached the limit
+			if maxResults > 0 && len(matches) >= maxResults {
+				break
+			}
 		}
 	}
 

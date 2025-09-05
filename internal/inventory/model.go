@@ -63,6 +63,11 @@ type ListResponse struct {
 	Count     int         `json:"count"`
 }
 
+// GetNeedingUpdateOptions contains options for GetNeedingUpdate query
+type GetNeedingUpdateOptions struct {
+	Limit int // Maximum number of instances to return. 0 or negative means no limit
+}
+
 type Store interface {
 	// CRUD
 	Save(instance *Instance) error
@@ -72,6 +77,6 @@ type Store interface {
 	CountByLabels(labels map[string]string) int
 
 	// Search for update
-	GetNeedingUpdate(labels map[string]string, desiredState State) ([]*Instance, error)
+	GetNeedingUpdate(labels map[string]string, desiredState State, opts *GetNeedingUpdateOptions) ([]*Instance, error)
 	CountNeedingUpdate(labels map[string]string, desiredState State) (int, error)
 }

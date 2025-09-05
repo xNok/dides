@@ -147,18 +147,18 @@ func (mr *MockInventoryServiceMockRecorder) GetInstancesByLabels(labels interfac
 }
 
 // GetNeedingUpdate mocks base method.
-func (m *MockInventoryService) GetNeedingUpdate(labels map[string]string, desiredState inventory.State) ([]*inventory.Instance, error) {
+func (m *MockInventoryService) GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNeedingUpdate", labels, desiredState)
+	ret := m.ctrl.Call(m, "GetNeedingUpdate", labels, desiredState, opts)
 	ret0, _ := ret[0].([]*inventory.Instance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetNeedingUpdate indicates an expected call of GetNeedingUpdate.
-func (mr *MockInventoryServiceMockRecorder) GetNeedingUpdate(labels, desiredState interface{}) *gomock.Call {
+func (mr *MockInventoryServiceMockRecorder) GetNeedingUpdate(labels, desiredState, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNeedingUpdate", reflect.TypeOf((*MockInventoryService)(nil).GetNeedingUpdate), labels, desiredState)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNeedingUpdate", reflect.TypeOf((*MockInventoryService)(nil).GetNeedingUpdate), labels, desiredState, opts)
 }
 
 // UpdateDesiredState mocks base method.

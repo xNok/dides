@@ -19,53 +19,46 @@ func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
 		ConfigurationVersion: record.Request.ConfigurationVersion,
 	}
 
-	// 2. Get instances that match the deployment labels AND need updates (leverage database filtering)
-	instances, err := s.inventory.GetNeedingUpdate(record.Request.Labels, desiredState)
+	// 2. Get total count of instances needing update for progress tracking
+	totalInstances, err := s.inventory.CountNeedingUpdate(record.Request.Labels, desiredState)
 	if err != nil {
 		return err
 	}
 
 	// 3. Initialize deployment progress
 	record.Progress = DeploymentProgress{
-		TotalInstances:      len(instances),
+		TotalInstances:      totalInstances,
 		InProgressInstances: 0,
 		CompletedInstances:  0,
 		FailedInstances:     0,
 		CurrentBatch:        make([]string, 0),
 	}
 
-	// 4. If no instances need updates, mark deployment as completed
+	// 4. Get instances that match the deployment labels AND need updates
+	opts := &inventory.GetNeedingUpdateOptions{
+		Limit: record.Request.Configuration.BatchSize,
+	}
+	instances, err := s.inventory.GetNeedingUpdate(record.Request.Labels, desiredState, opts)
+	if err != nil {
+		return err
+	}
+
+	// 5. If no instances need updates, mark deployment as completed
 	if len(instances) == 0 {
 		record.Status = Completed
-		record.Progress.CompletedInstances = len(instances)
+		record.Progress.CompletedInstances = totalInstances
 		return s.store.Update(record)
 	}
 
-	// 5. Start the first batch of deployments
-	batchSize := record.Request.Configuration.BatchSize
-	if batchSize <= 0 {
-		batchSize = 1 // Default to 1 if not specified
-	}
-
-	// 6. Start the first batch
-	batchEnd := batchSize
-	if batchEnd > len(instances) {
-		batchEnd = len(instances)
-	}
-
-	currentBatch := instances[:batchEnd]
+	// 6. Start the first batch of deployments
+	currentBatch := instances
 	record.Progress.CurrentBatch = make([]string, len(currentBatch))
 	record.Progress.InProgressInstances = len(currentBatch)
 
 	// 7. Update desired state for instances in the current batch
 	for i, instance := range currentBatch {
-		instanceKey := instance.Name
-		if instanceKey == "" {
-			instanceKey = instance.IP
-		}
-		record.Progress.CurrentBatch[i] = instanceKey
-
-		if err := s.inventory.UpdateDesiredState(instanceKey, desiredState); err != nil {
+		record.Progress.CurrentBatch[i] = instance.Name
+		if err := s.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
 			return err
 		}
 	}

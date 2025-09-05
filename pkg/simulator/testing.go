@@ -234,18 +234,6 @@ func (tu *TestUtilities) GetAllDeploymentsRaw(t *testing.T) *http.Response {
 	return resp
 }
 
-// GetDeploymentStatus retrieves the status of a specific deployment
-func (tu *TestUtilities) GetDeploymentStatus(t *testing.T, deploymentID string) *http.Response {
-	t.Helper()
-
-	resp, err := http.Get(tu.Server.URL + "/deploy/" + deploymentID + "/status")
-	if err != nil {
-		t.Fatalf("Failed to get deployment status: %v", err)
-	}
-
-	return resp
-}
-
 // MakeHTTPRequest is a generic helper for making HTTP requests
 func (tu *TestUtilities) MakeHTTPRequest(t *testing.T, method, path string, body interface{}) *http.Response {
 	t.Helper()

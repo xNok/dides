@@ -38,8 +38,8 @@ func (s *StateService) CountByLabels(labels map[string]string) int {
 }
 
 // GetNeedingUpdate returns instances that match labels and need state updates
-func (s *StateService) GetNeedingUpdate(labels map[string]string, desiredState State) ([]*Instance, error) {
-	return s.store.GetNeedingUpdate(labels, desiredState)
+func (s *StateService) GetNeedingUpdate(labels map[string]string, desiredState State, opts *GetNeedingUpdateOptions) ([]*Instance, error) {
+	return s.store.GetNeedingUpdate(labels, desiredState, opts)
 }
 
 // CountNeedingUpdate returns the count of instances that match labels and need state updates
