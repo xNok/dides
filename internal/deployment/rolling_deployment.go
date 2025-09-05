@@ -53,10 +53,7 @@ func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
 	}
 
 	// 2. Get total count of instances needing update for progress tracking
-	totalInstances, err := rd.inventory.CountNeedingUpdate(record.Request.Labels, desiredState)
-	if err != nil {
-		return err
-	}
+	totalInstances := rd.inventory.CountByLabels(record.Request.Labels)
 
 	// 3. Initialize deployment progress
 	record.Progress = DeploymentProgress{
