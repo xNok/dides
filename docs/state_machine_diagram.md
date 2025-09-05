@@ -259,53 +259,19 @@ flowchart TD
 - `POST /deploy/progress` - Manually progress deployment (for testing)
 - `POST /deploy/rollback` - Trigger rollback
 
-## 9. Unused/Untested Functions (⚠️ IDENTIFIED ISSUES)
+## 9. Improvements and Recommendations
 
-### Functions Implemented But Not Used in Main Flow:
-1. **`GetByID()`** in DeploymentStore - Only used in tests
-2. **`Delete()`** in both DeploymentStore and InventoryStore - Only used in tests  
-3. **`GetByIP()`** in InventoryStore - Not used anywhere
-4. **`UpdateLabels()`** in InventoryStore - Only used in tests
-5. **`Get()`** method in DeploymentStore - Returns extended record type, not used
-6. **`GetAll()`** in DeploymentStore - Not used in main application flow
-7. **`UpdateStatus()`** in DeploymentStore - Not used in main flow
-8. **`GetByLabels()`** in DeploymentStore - Not used in main flow
+### High Priority Enhancements:
+1. **Database Storage**: Replace in-memory storage with persistent database
 
-### Empty/Placeholder Components:
-1. **CLI Command** (`cmd/cli/main.go`) - Empty main function
-2. **Simulator Command** (`cmd/simulator/main.go`) - Empty main function  
-3. **Simulator Package** - Has utilities but no actual simulation logic
+### Medium Priority Improvements:
+1. **Background Processing**: Implement actual background reconciliation instead of manual progress calls
+2. **Metrics and Monitoring**: Add deployment metrics and health monitoring
+3. **Configuration Validation**: Enhance validation for deployment requests and instance registration
 
-### Missing DEGRADED Status:
-- **DEGRADED status** is documented everywhere but **not implemented in code**
-- README.md and diagrams show DEGRADED => 2, but code only has UNKNOWN(0), HEALTHY(1), FAILED(2)
-
-## 10. Improvements and Recommendations
-
-### High Priority Fixes:
+### Low Priority Enhancements:
 1. **Implement DEGRADED Status**: Add the missing status constant and update state transitions
 2. **Complete CLI Tool**: Implement actual CLI commands for deployment operations
 3. **Complete Simulator**: Implement actual instance simulation functionality
-4. **Remove Unused Functions**: Clean up functions that are only used in tests
-
-### Medium Priority Improvements:
-1. **Transaction Support**: Add proper transaction handling for batch operations
-2. **Background Processing**: Implement actual background reconciliation instead of manual progress calls
-3. **Metrics and Monitoring**: Add deployment metrics and health monitoring
-4. **Configuration Validation**: Enhance validation for deployment requests and instance registration
-
-### Low Priority Enhancements:
-1. **Database Storage**: Replace in-memory storage with persistent database
 2. **Advanced Deployment Strategies**: Implement blue-green, canary deployments
-3. **Instance Groups**: Support for deployment to instance groups/clusters
-4. **Webhook Support**: Add webhook notifications for deployment events
 
-This state machine architecture provides:
-1. **Clear state transitions** for both deployments and instances ✅
-2. **Concurrency control** through locking mechanisms ✅  
-3. **Error handling and recovery** through automatic rollbacks ✅
-4. **Progress tracking** through detailed counters ✅
-5. **Batch processing** to control deployment velocity ✅
-6. **Rollback capabilities** for failed deployments ✅
-
-⚠️ **Note**: The system has significant functionality implemented but also has several unused functions and missing features (like DEGRADED status) that should be addressed for production readiness.

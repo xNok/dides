@@ -1,20 +1,49 @@
-# dides
+# DIDES
 
 Distributed deployment system that safely rolls out updates across many service instances.
 
-## How to run the system
+## How to Run the System
 
 ```
 go run ./cmd/controller/main.go
 ```
 
+### Inventory Management
+- `GET /inventory/instances` - List all instances
+- `POST /inventory/instances/register` - Register new instance
+- `PATCH /inventory/instances/{instanceID}` - Update instance status/state
 
-## Register A New instance
+### Deployment Management  
+- `POST /deploy` - Trigger deployment
+- `GET /deploy/status` - Get running deployments status
+- `POST /deploy/progress` - Manually progress deployment
+- `POST /deploy/rollback` - Manually trigger rollback
 
-We assume that the instance are managed by an agent and can self register to the coordinatoor provided an identity or a token.
+## Implemented vs. Skipped
+
+This application provides:
+1. **State transitions** for both deployments and instances ✅
+2. **Concurrency control** through locking mechanisms ✅  
+3. **Rollback capabilities** for failed deployments ✅
+4. **Progress tracking** through deployment progress counters ✅
+5. **Batch processing** to control number of in-flight deployments ✅
+
+The application is missing:
+1. **Database Storage**: Replace in-memory storage with persistent database
+2. **Background Processing**: Implement actual background reconciliation instead of manual progress calls
+3. **Configuration Validation**: Enhance validation for deployment requests and instance registration
+4. **Metrics and Monitoring**: Add deployment metrics and health monitoring
+5. **Implement DEGRADED Status**: Add the missing status constant and update state transitions
+
+
+## More Detailed Workflow
+
+### Register a New Instance
+
+We assume that the instances are managed by an agent and can self-register to the coordinator provided an identity or a token.
 
 ```
-POST /inventory/register
+POST /inventory/instances/register
 
 {
   "instance": {
@@ -29,20 +58,20 @@ POST /inventory/register
 }
 ```
 
-## Instance heartbeat
+## Instance Heartbeat
 
-We assume we recieve regular heartbit from the instances with an update with `code_version`, `configuration_version` and `status`
+We assume we receive regular heartbeats from the instances with an update with `code_version`, `configuration_version` and `status`
 
 ```
 PATCH /inventory/instances/{instanceName}
 {
   "code_version": "1.0.0",
-  "configuration_version": "1.0.1"
+  "configuration_version": "1.0.1",
   "status": 1
 }
 ```
 
-We use status code to represent the satus of an instance
+We use status codes to represent the status of an instance
 
 ```
 UNKNOWN  => 0
@@ -54,37 +83,37 @@ FAILED   => 3
 
 ## Deployment Trigger
 
-You can deploy a new version of to a set of instance using the deploy endpoint, the body tells the coordinator the desired state, the target instances and configuration about deployment process itself.
+You can deploy a new version to a set of instances using the deploy endpoint. The body tells the coordinator the desired state, the target instances and configuration about the deployment process itself.
 
 ```
 POST /deploy
 {
   "code_version": "1.0.0",
-  "configuration_version": "1.0.1"
-  "lables": {
+  "configuration_version": "1.0.1",
+  "labels": {
     "env": "production"
   },
-  "condiguration": {
+  "configuration": {
     "batch_size": 2,
-    "failure_threshold": 1,
+    "failure_threshold": 1
   }
 }
 ```
 
-The system only accept one in flight deployment at the time.
+The system only accepts one in-flight deployment at a time.
 
-## Deployment Progress (after a trigger)
+## Deployment Progress (After a Trigger)
 
-Once a deployment is trigger the coordinatoor update the desired state (`code_version`, `configuration_version`) for up to `batch_size` instances and motior the progress of the deployment with the instances heartbeat.
+Once a deployment is triggered, the coordinator updates the desired state (`code_version`, `configuration_version`) for up to `batch_size` instances and monitors the progress of the deployment with the instances' heartbeats.
 
-Once 1 instances report `HEALTHY` and `code_version == target_code_version` then the deployment progress by updating the `target_code_version` for one of the remaining instances. The update process can be automated using a reconcilliation interval. However to provide simple way of testing the implication we can ise the following endpoint.
+Once instances report `HEALTHY` and `code_version == target_code_version`, then the deployment progresses by updating the `target_code_version` for one of the remaining instances. The update process can be automated using a reconciliation interval. However, to provide a simple way of testing the implementation, we can use the following endpoint.
 
 ```
 POST /deploy/progress
 {}
 ```
 
-In the best case scenario all intances eventualled report `HEALTHY` and `current_state == desired_state`. Then the eployment status is marked as completed.
+In the best case scenario, all instances eventually report `HEALTHY` and `current_state == desired_state`. Then the deployment status is marked as completed.
 
 
 
