@@ -46,7 +46,7 @@ func TestTriggerService_TriggerRollback(t *testing.T) {
 	mockStore.EXPECT().GetByStatus(deployment.Running).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
 
 	// Reset failed instances before rollback
-	mockStrategy.EXPECT().ResetFailedInstances(labels).Return(nil).Times(1)
+	mockStrategy.EXPECT().ResetFailedInstances(gomock.Any(), labels).Return(nil).Times(1)
 
 	// Get previous completed deployments
 	mockStore.EXPECT().GetByLabelsAndStatus(labels, deployment.Completed).Return([]*deployment.DeploymentRecord{previousDeployment}, nil).Times(1)
@@ -65,7 +65,7 @@ func TestTriggerService_TriggerRollback(t *testing.T) {
 	}).Times(1)
 
 	// Start the rollback deployment
-	mockStrategy.EXPECT().StartDeployment(gomock.Any()).Return(nil).Times(1)
+	mockStrategy.EXPECT().StartDeployment(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 	err := service.TriggerRollback(ctx, labels, config)
 	if err != nil {
@@ -97,7 +97,7 @@ func TestTriggerService_TriggerRollback_NoPreviousDeployment(t *testing.T) {
 	mockStore.EXPECT().GetByStatus(deployment.Running).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
 
 	// Reset failed instances before rollback
-	mockStrategy.EXPECT().ResetFailedInstances(labels).Return(nil).Times(1)
+	mockStrategy.EXPECT().ResetFailedInstances(gomock.Any(), labels).Return(nil).Times(1)
 
 	// Get previous completed deployments (none found)
 	mockStore.EXPECT().GetByLabelsAndStatus(labels, deployment.Completed).Return([]*deployment.DeploymentRecord{}, nil).Times(1)
@@ -164,7 +164,7 @@ func TestTriggerService_TriggerRollback_CancelsInProgressDeployment(t *testing.T
 	}).Times(1)
 
 	// Reset failed instances before rollback
-	mockStrategy.EXPECT().ResetFailedInstances(labels).Return(nil).Times(1)
+	mockStrategy.EXPECT().ResetFailedInstances(gomock.Any(), labels).Return(nil).Times(1)
 
 	// Get previous completed deployments
 	mockStore.EXPECT().GetByLabelsAndStatus(labels, deployment.Completed).Return([]*deployment.DeploymentRecord{previousDeployment}, nil).Times(1)
@@ -183,7 +183,7 @@ func TestTriggerService_TriggerRollback_CancelsInProgressDeployment(t *testing.T
 	}).Times(1)
 
 	// Start the rollback deployment
-	mockStrategy.EXPECT().StartDeployment(gomock.Any()).Return(nil).Times(1)
+	mockStrategy.EXPECT().StartDeployment(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 	err := service.TriggerRollback(ctx, labels, config)
 	if err != nil {
@@ -221,9 +221,9 @@ func TestRollingDeployment_FailureThresholdExceeded(t *testing.T) {
 	}
 
 	// Mock expectations - simulate failure threshold exceeded
-	mockInventory.EXPECT().CountFailed(record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 failures > threshold (1)
-	mockInventory.EXPECT().CountCompleted(record.Request.Labels, desiredState).Return(0, nil).Times(1)
-	mockInventory.EXPECT().CountInProgress(record.Request.Labels, desiredState).Return(0, nil).Times(1)
+	mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 failures > threshold (1)
+	mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
+	mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
 
 	updatedRecord, err := rollingDeployment.ProgressDeployment(ctx, record)
 

@@ -35,7 +35,7 @@ func TestTriggerService_GetDeploymentStatus(t *testing.T) {
 
 		mockStore.EXPECT().GetByStatus(deployment.Running).Return(expectedDeployments, nil).Times(1)
 
-		result, err := service.GetDeploymentStatus()
+		result, err := service.GetDeploymentStatus(context.Background())
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -54,7 +54,7 @@ func TestTriggerService_GetDeploymentStatus(t *testing.T) {
 		storeErr := errors.New("store error")
 		mockStore.EXPECT().GetByStatus(deployment.Running).Return(nil, storeErr).Times(1)
 
-		result, err := service.GetDeploymentStatus()
+		result, err := service.GetDeploymentStatus(context.Background())
 		if err != storeErr {
 			t.Errorf("Expected store error, got %v", err)
 		}
@@ -94,20 +94,20 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		}
 
 		// Mock expectations
-		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(5, nil).Times(1)
-		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).Return([]*inventory.Instance{}, nil).Times(1)
+		mockInventory.EXPECT().CountByLabels(gomock.Any(), record.Request.Labels).Return(5, nil).Times(1)
+		mockInventory.EXPECT().GetNeedingUpdate(gomock.Any(), record.Request.Labels, desiredState, gomock.Any()).Return([]*inventory.Instance{}, nil).Times(1)
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			// Verify the deployment is marked as completed
 			if r.Status != deployment.Completed {
 				t.Errorf("Expected status to be Completed, got %v", r.Status)
 			}
-			if r.Progress.CompletedInstances != 5 {
-				t.Errorf("Expected 5 completed instances, got %d", r.Progress.CompletedInstances)
+			if r.Progress.TotalMatchingInstances != 5 {
+				t.Errorf("Expected 5 completed instances, got %d", r.Progress.TotalMatchingInstances)
 			}
 			return nil
 		}).Times(1)
 
-		err := rollingDeployment.StartDeployment(record)
+		err := rollingDeployment.StartDeployment(context.Background(), record)
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -139,10 +139,10 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		}
 
 		// Mock expectations
-		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(10, nil).Times(1)
-		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).Return(instances, nil).Times(1)
-		mockInventory.EXPECT().UpdateDesiredState("instance-1", desiredState).Return(nil).Times(1)
-		mockInventory.EXPECT().UpdateDesiredState("instance-2", desiredState).Return(nil).Times(1)
+		mockInventory.EXPECT().CountByLabels(gomock.Any(), record.Request.Labels).Return(10, nil).Times(1)
+		mockInventory.EXPECT().GetNeedingUpdate(gomock.Any(), record.Request.Labels, desiredState, gomock.Any()).Return(instances, nil).Times(1)
+		mockInventory.EXPECT().UpdateDesiredState(gomock.Any(), "instance-1", desiredState).Return(nil).Times(1)
+		mockInventory.EXPECT().UpdateDesiredState(gomock.Any(), "instance-2", desiredState).Return(nil).Times(1)
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			// Verify the progress is updated correctly
 			if r.Progress.TotalMatchingInstances != 10 {
@@ -154,7 +154,7 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 			return nil
 		}).Times(1)
 
-		err := rollingDeployment.StartDeployment(record)
+		err := rollingDeployment.StartDeployment(context.Background(), record)
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -171,9 +171,9 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		}
 
 		countErr := errors.New("count error")
-		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(0, countErr).Times(1)
+		mockInventory.EXPECT().CountByLabels(gomock.Any(), record.Request.Labels).Return(0, countErr).Times(1)
 
-		err := rollingDeployment.StartDeployment(record)
+		err := rollingDeployment.StartDeployment(context.Background(), record)
 		if err != countErr {
 			t.Errorf("Expected count error, got %v", err)
 		}
@@ -284,16 +284,16 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		t.Log("Step 1: Starting deployment")
 
 		// Mock expectations for StartDeployment
-		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(5, nil).Times(1)
-		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).DoAndReturn(
-			func(labels map[string]string, state inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
+		mockInventory.EXPECT().CountByLabels(gomock.Any(), record.Request.Labels).Return(5, nil).Times(1)
+		mockInventory.EXPECT().GetNeedingUpdate(gomock.Any(), record.Request.Labels, desiredState, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, labels map[string]string, state inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
 				// Return first 2 instances for the first batch
 				return allInstances[:2], nil
 			}).Times(1)
 
 		// Expect UpdateDesiredState calls for first batch (instances 1 and 2)
-		mockInventory.EXPECT().UpdateDesiredState("instance-1", desiredState).Return(nil).Times(1)
-		mockInventory.EXPECT().UpdateDesiredState("instance-2", desiredState).Return(nil).Times(1)
+		mockInventory.EXPECT().UpdateDesiredState(gomock.Any(), "instance-1", desiredState).Return(nil).Times(1)
+		mockInventory.EXPECT().UpdateDesiredState(gomock.Any(), "instance-2", desiredState).Return(nil).Times(1)
 
 		// Expect store update with initial progress
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
@@ -301,7 +301,7 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 			return nil
 		}).Times(1)
 
-		err := rollingDeployment.StartDeployment(record)
+		err := rollingDeployment.StartDeployment(context.Background(), record)
 		if err != nil {
 			t.Fatalf("Expected no error in StartDeployment, got %v", err)
 		}
@@ -310,13 +310,13 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		t.Log("Step 2: First progress check - instances 1 and 2 still updating")
 
 		// Mock expectations for first ProgressDeployment call
-		mockInventory.EXPECT().CountFailed(record.Request.Labels, desiredState).Return(0, nil).Times(1)
-		mockInventory.EXPECT().CountCompleted(record.Request.Labels, desiredState).Return(0, nil).Times(1)  // Still updating
-		mockInventory.EXPECT().CountInProgress(record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 instances in progress
+		mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
+		mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)  // Still updating
+		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 instances in progress
 
 		// No new instances to start (batch limit reached)
-		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).DoAndReturn(
-			func(labels map[string]string, state inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
+		mockInventory.EXPECT().GetNeedingUpdate(gomock.Any(), record.Request.Labels, desiredState, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, labels map[string]string, state inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
 				// No new instances since we're at batch limit
 				return []*inventory.Instance{}, nil
 			}).Times(1)
@@ -337,9 +337,9 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		// Step 3: Instances 1 and 2 complete, but algorithm might not start new instances yet
 		t.Log("Step 3: Instances 1 and 2 complete, checking progress")
 
-		mockInventory.EXPECT().CountFailed(record.Request.Labels, desiredState).Return(0, nil).Times(1)
-		mockInventory.EXPECT().CountCompleted(record.Request.Labels, desiredState).Return(2, nil).Times(1)  // 2 completed
-		mockInventory.EXPECT().CountInProgress(record.Request.Labels, desiredState).Return(0, nil).Times(1) // 0 in progress
+		mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
+		mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1)  // 2 completed
+		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1) // 0 in progress
 
 		// Algorithm doesn't start new instances in this step - just updates progress
 		// No GetNeedingUpdate or UpdateDesiredState calls expected
@@ -357,9 +357,9 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		// Step 4: Progress deployment - instances 3 and 4 still updating
 		t.Log("Step 4: Progress check - instances 3 and 4 still updating")
 
-		mockInventory.EXPECT().CountFailed(record.Request.Labels, desiredState).Return(0, nil).Times(1)
-		mockInventory.EXPECT().CountCompleted(record.Request.Labels, desiredState).Return(2, nil).Times(1)  // Still 2 completed
-		mockInventory.EXPECT().CountInProgress(record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 instances in progress
+		mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
+		mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1)  // Still 2 completed
+		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 instances in progress
 
 		// Since progress == BatchSize (2), no new instances should be started - the algorithm will return early
 		// So we don't expect GetNeedingUpdate or UpdateDesiredState calls
@@ -377,9 +377,9 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		// Step 5: Instances 3 and 4 complete, start final instance (instance 5)
 		t.Log("Step 5: Instances 3 and 4 complete, starting final instance 5")
 
-		mockInventory.EXPECT().CountFailed(record.Request.Labels, desiredState).Return(0, nil).Times(1)
-		mockInventory.EXPECT().CountCompleted(record.Request.Labels, desiredState).Return(4, nil).Times(1)  // 4 completed
-		mockInventory.EXPECT().CountInProgress(record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 instances in progress (might be a bug in the implementation)
+		mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
+		mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(4, nil).Times(1)  // 4 completed
+		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 instances in progress (might be a bug in the implementation)
 
 		// Since progress == BatchSize (2), no new instances should be started
 		// The algorithm returns early without calling GetNeedingUpdate or UpdateDesiredState
@@ -397,9 +397,9 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		// Step 6: All instances complete - deployment finished
 		t.Log("Step 6: All instances complete - deployment finished")
 
-		mockInventory.EXPECT().CountFailed(record.Request.Labels, desiredState).Return(0, nil).Times(1)
-		mockInventory.EXPECT().CountCompleted(record.Request.Labels, desiredState).Return(5, nil).Times(1)  // All 5 completed
-		mockInventory.EXPECT().CountInProgress(record.Request.Labels, desiredState).Return(0, nil).Times(1) // None in progress
+		mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
+		mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(5, nil).Times(1)  // All 5 completed
+		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1) // None in progress
 
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			if r.Status != deployment.Completed {

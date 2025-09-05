@@ -43,7 +43,7 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 		return nil
 	}).Times(1)
 	// Mock strategy StartDeployment call
-	mockStrategy.EXPECT().StartDeployment(gomock.Any()).Return(nil).Times(1)
+	mockStrategy.EXPECT().StartDeployment(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 
 	err := service.TriggerDeployment(ctx, &req)
 	if err != nil {

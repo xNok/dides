@@ -51,29 +51,29 @@ func (mr *MockDeploymentStrategyMockRecorder) ProgressDeployment(ctx, record int
 }
 
 // ResetFailedInstances mocks base method.
-func (m *MockDeploymentStrategy) ResetFailedInstances(labels map[string]string) error {
+func (m *MockDeploymentStrategy) ResetFailedInstances(ctx context.Context, labels map[string]string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResetFailedInstances", labels)
+	ret := m.ctrl.Call(m, "ResetFailedInstances", ctx, labels)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ResetFailedInstances indicates an expected call of ResetFailedInstances.
-func (mr *MockDeploymentStrategyMockRecorder) ResetFailedInstances(labels interface{}) *gomock.Call {
+func (mr *MockDeploymentStrategyMockRecorder) ResetFailedInstances(ctx, labels interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetFailedInstances", reflect.TypeOf((*MockDeploymentStrategy)(nil).ResetFailedInstances), labels)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetFailedInstances", reflect.TypeOf((*MockDeploymentStrategy)(nil).ResetFailedInstances), ctx, labels)
 }
 
 // StartDeployment mocks base method.
-func (m *MockDeploymentStrategy) StartDeployment(record *deployment.DeploymentRecord) error {
+func (m *MockDeploymentStrategy) StartDeployment(ctx context.Context, record *deployment.DeploymentRecord) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartDeployment", record)
+	ret := m.ctrl.Call(m, "StartDeployment", ctx, record)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StartDeployment indicates an expected call of StartDeployment.
-func (mr *MockDeploymentStrategyMockRecorder) StartDeployment(record interface{}) *gomock.Call {
+func (mr *MockDeploymentStrategyMockRecorder) StartDeployment(ctx, record interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartDeployment", reflect.TypeOf((*MockDeploymentStrategy)(nil).StartDeployment), record)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartDeployment", reflect.TypeOf((*MockDeploymentStrategy)(nil).StartDeployment), ctx, record)
 }

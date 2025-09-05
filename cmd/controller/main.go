@@ -77,8 +77,10 @@ func setupRouter() *chi.Mux {
 
 // listInstances returns all instances in the inventory
 func listInstances(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Get all instances using the registration service
-	instances, err := registrationService.ListAllInstances()
+	instances, err := registrationService.ListAllInstances(ctx)
 	if err != nil {
 		http.Error(w, "Failed to retrieve instances", http.StatusInternalServerError)
 		return
@@ -98,6 +100,7 @@ func listInstances(w http.ResponseWriter, r *http.Request) {
 
 // registerInstance adds an instance to the inventory
 func registerInstance(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	var req inventory.RegistrationRequest
 
 	// Parse the request body
@@ -107,7 +110,7 @@ func registerInstance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Register the instance using the registration service
-	instance, err := registrationService.RegisterInstance(req)
+	instance, err := registrationService.RegisterInstance(ctx, req)
 	if err != nil {
 		if err == inventory.ErrInvalidToken {
 			http.Error(w, "Invalid registration token", http.StatusUnauthorized)
@@ -131,6 +134,8 @@ func registerInstance(w http.ResponseWriter, r *http.Request) {
 
 // updateInstance modify the state of the instance record and return desired state
 func updateInstance(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Extract instance ID from URL path parameter
 	instanceID := chi.URLParam(r, "instanceID")
 	if instanceID == "" {
@@ -147,7 +152,7 @@ func updateInstance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the instance using the update service
-	instance, err := updateService.UpdateInstance(instanceID, req)
+	instance, err := updateService.UpdateInstance(ctx, instanceID, req)
 	if err != nil {
 		if err == inmemory.ErrInstanceNotFound {
 			http.Error(w, "Instance not found", http.StatusNotFound)
@@ -214,8 +219,10 @@ func deployTrigger(w http.ResponseWriter, r *http.Request) {
 
 // deploymentStatus returns the status and progress of a deployment
 func deploymentStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	// Get all running deployments
-	deployments, err := triggerService.GetDeploymentStatus()
+	deployments, err := triggerService.GetDeploymentStatus(ctx)
 	if err != nil {
 		http.Error(w, "Failed to get deployment status", http.StatusInternalServerError)
 		return

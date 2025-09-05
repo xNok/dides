@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -28,7 +29,7 @@ func (r RegistrationRequest) Validate() error {
 	return nil
 }
 
-func (s *RegistrationService) RegisterInstance(req RegistrationRequest) (*Instance, error) {
+func (s *RegistrationService) RegisterInstance(ctx context.Context, req RegistrationRequest) (*Instance, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func (s *RegistrationService) RegisterInstance(req RegistrationRequest) (*Instan
 }
 
 // ListAllInstances returns all registered instances
-func (s *RegistrationService) ListAllInstances() ([]*Instance, error) {
+func (s *RegistrationService) ListAllInstances(ctx context.Context) ([]*Instance, error) {
 	instances := s.store.GetAll()
 	return instances, nil
 }

@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -37,7 +38,7 @@ func NewUpdateService(store Store) *UpdateService {
 	}
 }
 
-func (s *UpdateService) UpdateInstance(instanceKey string, req UpdateRequest) (*Instance, error) {
+func (s *UpdateService) UpdateInstance(ctx context.Context, instanceKey string, req UpdateRequest) (*Instance, error) {
 	now := time.Now()
 
 	// Validate the instance key
@@ -62,7 +63,7 @@ func (s *UpdateService) UpdateInstance(instanceKey string, req UpdateRequest) (*
 }
 
 // UpdateInstanceState updates the current or desired state of an instance
-func (s *UpdateService) UpdateInstanceState(instanceKey string, req StateUpdateRequest) (*Instance, error) {
+func (s *UpdateService) UpdateInstanceState(ctx context.Context, instanceKey string, req StateUpdateRequest) (*Instance, error) {
 	if instanceKey == "" {
 		return nil, ErrUpdateValidation
 	}
@@ -100,7 +101,7 @@ func (s *UpdateService) UpdateInstanceState(instanceKey string, req StateUpdateR
 }
 
 // GetDesiredState returns the desired state for an instance
-func (s *UpdateService) GetDesiredState(instanceKey string) (*State, error) {
+func (s *UpdateService) GetDesiredState(ctx context.Context, instanceKey string) (*State, error) {
 	instances := s.store.GetAll()
 	for _, instance := range instances {
 		key := instance.Name

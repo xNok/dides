@@ -94,7 +94,7 @@ func (s *TriggerService) TriggerDeployment(ctx context.Context, req *DeploymentR
 	}
 
 	// 3. trigger the deployment using the strategy
-	if err := s.strategy.StartDeployment(record); err != nil {
+	if err := s.strategy.StartDeployment(ctx, record); err != nil {
 		return err
 	}
 
@@ -112,7 +112,7 @@ func (s *TriggerService) isRolloutInProgress() bool {
 }
 
 // GetDeploymentStatus returns all currently running deployments
-func (s *TriggerService) GetDeploymentStatus() ([]*DeploymentRecord, error) {
+func (s *TriggerService) GetDeploymentStatus(ctx context.Context) ([]*DeploymentRecord, error) {
 	return s.store.GetByStatus(Running)
 }
 
@@ -194,7 +194,7 @@ func (s *TriggerService) createRollbackDeployment(ctx context.Context, labels ma
 	}
 
 	// 2. Reset failed instances before starting rollback
-	if err := s.strategy.ResetFailedInstances(labels); err != nil {
+	if err := s.strategy.ResetFailedInstances(ctx, labels); err != nil {
 		return fmt.Errorf("failed to reset failed instances: %w", err)
 	}
 
@@ -235,5 +235,5 @@ func (s *TriggerService) createRollbackDeployment(ctx context.Context, labels ma
 	}
 
 	// 7. Start the rollback deployment using the strategy
-	return s.strategy.StartDeployment(record)
+	return s.strategy.StartDeployment(ctx, record)
 }

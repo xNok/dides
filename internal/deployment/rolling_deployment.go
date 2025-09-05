@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"errors"
 
 	"github.com/xnok/dides/internal/inventory"
 )
@@ -16,24 +17,24 @@ type RollingDeployment struct {
 
 type InventoryService interface {
 	// GetInstancesByLabels returns instances that match the given labels
-	GetInstancesByLabels(labels map[string]string) ([]*inventory.Instance, error)
+	GetInstancesByLabels(ctx context.Context, labels map[string]string) ([]*inventory.Instance, error)
 	// UpdateDesiredState sets the desired state for an instance
-	UpdateDesiredState(instanceKey string, state inventory.State) error
+	UpdateDesiredState(ctx context.Context, instanceKey string, state inventory.State) error
 
 	// CountByLabels returns the total number of instances that match the given labels
-	CountByLabels(labels map[string]string) (int, error)
+	CountByLabels(ctx context.Context, labels map[string]string) (int, error)
 	// CountNeedingUpdate returns the total number of instances that need to be updated (haven't been started yet)
-	CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error)
+	CountNeedingUpdate(ctx context.Context, labels map[string]string, desiredState inventory.State) (int, error)
 	// GetNeedingUpdate returns instances that need to be updated (options can limit the number of results for batching)
-	GetNeedingUpdate(labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error)
+	GetNeedingUpdate(ctx context.Context, labels map[string]string, desiredState inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error)
 	// CountInProgress returns the total number of instances currently being updated (desiredState == targetState but currentState != desiredState)
-	CountInProgress(labels map[string]string, desiredState inventory.State) (int, error)
+	CountInProgress(ctx context.Context, labels map[string]string, desiredState inventory.State) (int, error)
 	// CountCompleted returns the total number of instances that have completed the update
-	CountCompleted(labels map[string]string, desiredState inventory.State) (int, error)
+	CountCompleted(ctx context.Context, labels map[string]string, desiredState inventory.State) (int, error)
 	// CountFailed returns the total number of instances that have failed the update
-	CountFailed(labels map[string]string, desiredState inventory.State) (int, error)
+	CountFailed(ctx context.Context, labels map[string]string, desiredState inventory.State) (int, error)
 	// ResetFailedInstances resets the status of failed instances matching the labels to UNKNOWN
-	ResetFailedInstances(labels map[string]string) error
+	ResetFailedInstances(ctx context.Context, labels map[string]string) error
 }
 
 // NewRollingDeployment creates a new rolling deployment strategy
@@ -44,65 +45,57 @@ func NewRollingDeployment(store Store, inventory InventoryService) *RollingDeplo
 	}
 }
 
-// StartDeployment initializes the deployment with the number of instances matching the batch size
-func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
-	// 1. Determine desired state from the deployment request
+// StartDeployment prepares the deployment by getting instances and validating the configuration
+func (rd *RollingDeployment) StartDeployment(ctx context.Context, record *DeploymentRecord) error {
+	// 1. Check if the labels match any instances to validate the deployment request
+	totalInstances, err := rd.inventory.CountByLabels(ctx, record.Request.Labels)
+	if err != nil {
+		return err
+	}
+
+	if totalInstances == 0 {
+		return errors.New("no instances match the specified labels")
+	}
+
+	// 2. Update deployment record with total count
+	record.Progress.TotalMatchingInstances = totalInstances
+
+	// 3. Start initial batch if needed
 	desiredState := inventory.State{
 		CodeVersion:          record.Request.CodeVersion,
 		ConfigurationVersion: record.Request.ConfigurationVersion,
 	}
 
-	// 2. Get total count of instances matching labels for progress tracking
-	totalInstances, err := rd.inventory.CountByLabels(record.Request.Labels)
-	if err != nil {
-		return err
-	}
-
-	// 3. Initialize deployment progress
-	record.Progress = DeploymentProgress{
-		TotalMatchingInstances: totalInstances,
-		InProgressInstances:    0,
-		CompletedInstances:     0,
-		FailedInstances:        0,
-	}
-
-	// 4. Get instances that match the deployment labels AND need updates
 	opts := &inventory.GetNeedingUpdateOptions{
 		Limit: record.Request.Configuration.BatchSize,
 	}
-	instances, err := rd.inventory.GetNeedingUpdate(record.Request.Labels, desiredState, opts)
+	instances, err := rd.inventory.GetNeedingUpdate(ctx, record.Request.Labels, desiredState, opts)
 	if err != nil {
 		return err
 	}
 
-	// 5. If no instances need updates, mark deployment as completed
 	if len(instances) == 0 {
+		// All instances are already at the desired state, mark deployment as completed
 		record.Status = Completed
 		record.Progress.CompletedInstances = totalInstances
 		return rd.store.Update(record)
 	}
 
-	// 6. Start the first batch of deployments
-	currentBatch := instances
-
-	// 7. Update desired state for instances in the current batch
+	// 4. Update the state for initial batch
 	// TODO: Consider using UpdateMany such that it can be done in a transaction (so it can be rolled back)
-	for _, instance := range currentBatch {
-		if err := rd.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
+	for _, instance := range instances {
+		if err := rd.inventory.UpdateDesiredState(ctx, instance.Name, desiredState); err != nil {
 			return err
 		}
-
-		// update record if state was updated
 		record.Progress.InProgressInstances++
 	}
 
-	// Update the deployment record with progress
 	return rd.store.Update(record)
 }
 
 // ResetFailedInstances resets the status of failed instances matching the labels to UNKNOWN
-func (rd *RollingDeployment) ResetFailedInstances(labels map[string]string) error {
-	return rd.inventory.ResetFailedInstances(labels)
+func (rd *RollingDeployment) ResetFailedInstances(ctx context.Context, labels map[string]string) error {
+	return rd.inventory.ResetFailedInstances(ctx, labels)
 }
 
 // ProgressDeployment checks instance states and progresses the deployment
@@ -118,19 +111,19 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	// ------------------------------------------------------
 
 	// 1. Check number of failed instances and update record
-	failed, err := rd.inventory.CountFailed(record.Request.Labels, desiredState)
+	failed, err := rd.inventory.CountFailed(ctx, record.Request.Labels, desiredState)
 	if err != nil {
 		return nil, err
 	}
 
 	// 2. How many of the current batch are done?
-	completed, err := rd.inventory.CountCompleted(record.Request.Labels, desiredState)
+	completed, err := rd.inventory.CountCompleted(ctx, record.Request.Labels, desiredState)
 	if err != nil {
 		return nil, err
 	}
 
 	// 3. How many are still in progress (desiredState == targetState but currentState != desiredState)?
-	inProgress, err := rd.inventory.CountInProgress(record.Request.Labels, desiredState)
+	inProgress, err := rd.inventory.CountInProgress(ctx, record.Request.Labels, desiredState)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +158,7 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	opts := &inventory.GetNeedingUpdateOptions{
 		Limit: record.Request.Configuration.BatchSize - record.Progress.InProgressInstances,
 	}
-	instances, err := rd.inventory.GetNeedingUpdate(record.Request.Labels, desiredState, opts)
+	instances, err := rd.inventory.GetNeedingUpdate(ctx, record.Request.Labels, desiredState, opts)
 	if err != nil {
 		return record, err
 	}
@@ -173,7 +166,7 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	// 5. Update the state for next batch
 	// TODO: Consider using UpdateMany such that it can be done in a transaction (so it can be rolled back)
 	for _, instance := range instances {
-		if err := rd.inventory.UpdateDesiredState(instance.Name, desiredState); err != nil {
+		if err := rd.inventory.UpdateDesiredState(ctx, instance.Name, desiredState); err != nil {
 			return record, err
 		}
 		record.Progress.InProgressInstances++
