@@ -57,30 +57,6 @@ func (s *InventoryStore) Update(key string, patch inventory.InstancePatch) (*inv
 	updated := *instance
 
 	// Apply patch fields if they are provided (not nil)
-	if patch.IP != nil {
-		updated.IP = *patch.IP
-	}
-	if patch.Name != nil {
-		// If name is being changed, we need to update the key
-		oldKey := key
-		newKey := *patch.Name
-		if newKey == "" {
-			newKey = updated.IP // fallback to IP if name becomes empty
-		}
-
-		updated.Name = *patch.Name
-
-		// If the key changed, remove old entry and add with new key
-		if oldKey != newKey {
-			delete(s.instances, oldKey)
-			s.instances[newKey] = &updated
-		} else {
-			s.instances[key] = &updated
-		}
-	} else {
-		s.instances[key] = &updated
-	}
-
 	if patch.Labels != nil {
 		// For labels, we do a merge - existing labels are preserved unless overridden
 		if updated.Labels == nil {
@@ -89,31 +65,18 @@ func (s *InventoryStore) Update(key string, patch inventory.InstancePatch) (*inv
 		for k, v := range patch.Labels {
 			updated.Labels[k] = v
 		}
-		// Update the stored instance with merged labels
-		if patch.Name != nil && *patch.Name != key {
-			// Key was changed above, instance is already updated
-		} else {
-			s.instances[key] = &updated
-		}
 	}
 
 	if patch.LastPing != nil {
 		updated.LastPing = *patch.LastPing
-		if patch.Name != nil && *patch.Name != key {
-			// Key was changed above, instance is already updated
-		} else {
-			s.instances[key] = &updated
-		}
 	}
 
 	if patch.Status != nil {
 		updated.Status = *patch.Status
-		if patch.Name != nil && *patch.Name != key {
-			// Key was changed above, instance is already updated
-		} else {
-			s.instances[key] = &updated
-		}
 	}
+
+	// Update the stored instance
+	s.instances[key] = &updated
 
 	// Return a copy of the updated instance
 	result := updated

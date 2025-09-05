@@ -19,11 +19,18 @@ func NewRegistrationService(store Store) *RegistrationService {
 	}
 }
 
-func (s *RegistrationService) RegisterInstance(req RegistrationRequest) (*Instance, error) {
-
+// Validate the registration request
+func (r RegistrationRequest) Validate() error {
 	// TODO: Validate registration token - we accept anthing for now to keep things simple
-	if req.Token == "" {
-		return nil, ErrInvalidToken
+	if r.Token == "" {
+		return ErrInvalidToken
+	}
+	return nil
+}
+
+func (s *RegistrationService) RegisterInstance(req RegistrationRequest) (*Instance, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
 	}
 
 	// Set the first connected timestamp

@@ -146,12 +146,10 @@ func TestInventoryStore_Update(t *testing.T) {
 	store.Save(instance)
 
 	// Test partial update
-	newIP := "192.168.1.200"
 	newStatus := inventory.HEALTHY
 	newTime := time.Now()
 
 	patch := inventory.InstancePatch{
-		IP:       &newIP,
 		Status:   &newStatus,
 		LastPing: &newTime,
 		Labels:   map[string]string{"env": "prod", "region": "us-west"}, // Will merge with existing
@@ -162,9 +160,9 @@ func TestInventoryStore_Update(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	// Verify updates
-	if updated.IP != newIP {
-		t.Errorf("Expected IP %s, got %s", newIP, updated.IP)
+	// Verify updates - IP should remain unchanged since it's immutable
+	if updated.IP != "192.168.1.100" {
+		t.Errorf("Expected IP to remain unchanged: 192.168.1.100, got %s", updated.IP)
 	}
 
 	if updated.Status != newStatus {
@@ -194,50 +192,8 @@ func TestInventoryStore_Update(t *testing.T) {
 		t.Fatal("Expected updated instance to exist in store")
 	}
 
-	if retrieved.IP != newIP {
-		t.Errorf("Expected stored IP %s, got %s", newIP, retrieved.IP)
-	}
-}
-
-func TestInventoryStore_UpdateWithNameChange(t *testing.T) {
-	store := NewInventoryStore()
-
-	// Create initial instance
-	instance := &inventory.Instance{
-		IP:   "192.168.1.100",
-		Name: "old-name",
-	}
-
-	store.Save(instance)
-
-	// Update name
-	newName := "new-name"
-	patch := inventory.InstancePatch{
-		Name: &newName,
-	}
-
-	updated, err := store.Update("old-name", patch)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if updated.Name != newName {
-		t.Errorf("Expected Name %s, got %s", newName, updated.Name)
-	}
-
-	// Verify old key is gone and new key exists
-	_, exists := store.Get("old-name")
-	if exists {
-		t.Error("Expected old key to not exist")
-	}
-
-	retrieved, exists := store.Get("new-name")
-	if !exists {
-		t.Fatal("Expected new key to exist")
-	}
-
-	if retrieved.Name != newName {
-		t.Errorf("Expected retrieved Name %s, got %s", newName, retrieved.Name)
+	if retrieved.IP != "192.168.1.100" {
+		t.Errorf("Expected stored IP to remain unchanged: 192.168.1.100, got %s", retrieved.IP)
 	}
 }
 

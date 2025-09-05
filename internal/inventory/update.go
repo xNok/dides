@@ -6,20 +6,18 @@ import (
 )
 
 var (
+	ErrInstanceNotFound = errors.New("instance not found")
 	ErrUpdateValidation = errors.New("invalid update request")
 )
 
 // UpdateRequest represents a request to update an instance
 type UpdateRequest struct {
-	InstanceKey string        `json:"instance_key"`
-	Updates     InstancePatch `json:"updates"`
+	Updates InstancePatch `json:"updates"`
 }
 
 // Validate checks if the update request is valid
 func (r UpdateRequest) Validate() error {
-	if r.InstanceKey == "" {
-		return ErrUpdateValidation
-	}
+	// TODO: For now no validation I can think of
 	return nil
 }
 
@@ -33,8 +31,13 @@ func NewUpdateService(store Store) *UpdateService {
 	}
 }
 
-func (s *UpdateService) UpdateInstance(req UpdateRequest) (*Instance, error) {
+func (s *UpdateService) UpdateInstance(instanceKey string, req UpdateRequest) (*Instance, error) {
 	now := time.Now()
+
+	// Validate the instance key
+	if instanceKey == "" {
+		return nil, ErrUpdateValidation
+	}
 
 	// Validate the request
 	if err := req.Validate(); err != nil {
@@ -44,7 +47,7 @@ func (s *UpdateService) UpdateInstance(req UpdateRequest) (*Instance, error) {
 	req.Updates.LastPing = &now
 
 	// Update the instance in the store
-	instance, err := s.store.Update(req.InstanceKey, req.Updates)
+	instance, err := s.store.Update(instanceKey, req.Updates)
 	if err != nil {
 		return nil, err
 	}
