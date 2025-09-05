@@ -108,14 +108,14 @@ flowchart TD
     N -->|Yes| O[Mark as Completed]
     O --> P[End: Deployment Completed]
     
-    N -->|No| Q{Batch Full (InProgress == BatchSize)?}
+    N -->|No| Q{Batch Full?}
     Q -->|Yes| R[Wait - No New Instances]
     R --> S[Update Record & Release Lock]
     
     Q -->|No| T[Calculate Available Batch Slots]
     T --> U[Get Next Batch of Instances]
     U --> V[Update DesiredState for New Instances]
-    V --> W[Update Progress: InProgressInstances++]
+    V --> W[Update Progress Counters]
     W --> S
     
     S --> X[End: Progress Updated]
