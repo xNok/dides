@@ -172,6 +172,80 @@ func (tu *TestUtilities) TriggerDeployment(t *testing.T, deploymentRequest deplo
 	return resp
 }
 
+// ProgressDeployment progresses the current running deployment and returns decoded response
+func (tu *TestUtilities) ProgressDeployment(t *testing.T) (*deployment.DeploymentProgressResponse, *http.Response) {
+	t.Helper()
+
+	resp, err := http.Post(
+		tu.Server.URL+"/deploy/progress",
+		"application/json",
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Failed to progress deployment: %v", err)
+	}
+
+	var progressResponse deployment.DeploymentProgressResponse
+	tu.DecodeResponse(t, resp, &progressResponse)
+
+	return &progressResponse, resp
+}
+
+// ProgressDeploymentRaw progresses the current running deployment and returns raw response
+func (tu *TestUtilities) ProgressDeploymentRaw(t *testing.T) *http.Response {
+	t.Helper()
+
+	resp, err := http.Post(
+		tu.Server.URL+"/deploy/progress",
+		"application/json",
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Failed to progress deployment: %v", err)
+	}
+
+	return resp
+}
+
+// GetAllDeployments retrieves all currently running deployments and returns decoded response
+func (tu *TestUtilities) GetAllDeployments(t *testing.T) (*deployment.DeploymentStatusResponse, *http.Response) {
+	t.Helper()
+
+	resp, err := http.Get(tu.Server.URL + "/deploy/status")
+	if err != nil {
+		t.Fatalf("Failed to get all deployments: %v", err)
+	}
+
+	var statusResponse deployment.DeploymentStatusResponse
+	tu.DecodeResponse(t, resp, &statusResponse)
+
+	return &statusResponse, resp
+}
+
+// GetAllDeploymentsRaw retrieves all currently running deployments and returns raw response
+func (tu *TestUtilities) GetAllDeploymentsRaw(t *testing.T) *http.Response {
+	t.Helper()
+
+	resp, err := http.Get(tu.Server.URL + "/deploy/status")
+	if err != nil {
+		t.Fatalf("Failed to get all deployments: %v", err)
+	}
+
+	return resp
+}
+
+// GetDeploymentStatus retrieves the status of a specific deployment
+func (tu *TestUtilities) GetDeploymentStatus(t *testing.T, deploymentID string) *http.Response {
+	t.Helper()
+
+	resp, err := http.Get(tu.Server.URL + "/deploy/" + deploymentID + "/status")
+	if err != nil {
+		t.Fatalf("Failed to get deployment status: %v", err)
+	}
+
+	return resp
+}
+
 // MakeHTTPRequest is a generic helper for making HTTP requests
 func (tu *TestUtilities) MakeHTTPRequest(t *testing.T, method, path string, body interface{}) *http.Response {
 	t.Helper()

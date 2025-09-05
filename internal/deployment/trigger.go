@@ -30,6 +30,10 @@ type InventoryService interface {
 	GetInstancesByLabels(labels map[string]string) ([]*inventory.Instance, error)
 	// UpdateDesiredState sets the desired state for an instance
 	UpdateDesiredState(instanceKey string, state inventory.State) error
+	// Efficient methods for deployment logic
+	CountByLabels(labels map[string]string) int
+	GetNeedingUpdate(labels map[string]string, desiredState inventory.State) ([]*inventory.Instance, error)
+	CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error)
 }
 
 type Locker interface {

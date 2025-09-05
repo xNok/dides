@@ -174,23 +174,56 @@ func (s *InventoryStore) GetByLabels(labels map[string]string) []*inventory.Inst
 	return matches
 }
 
-// GetInstancesWithState finds instances that need updates (current != desired)
-func (s *InventoryStore) GetInstancesWithState(currentState, desiredState inventory.State) ([]*inventory.Instance, error) {
+// CountByLabels returns the count of instances matching the given labels
+func (s *InventoryStore) CountByLabels(labels map[string]string) int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	count := 0
+	for _, instance := range s.instances {
+		if s.matchesLabels(instance, labels) {
+			count++
+		}
+	}
+
+	return count
+}
+
+// GetNeedingUpdate returns instances that match labels and need state updates
+func (s *InventoryStore) GetNeedingUpdate(labels map[string]string, desiredState inventory.State) ([]*inventory.Instance, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	var matches []*inventory.Instance
 	for _, instance := range s.instances {
-		if instance.CurrentState.CodeVersion == currentState.CodeVersion &&
-			instance.CurrentState.ConfigurationVersion == currentState.ConfigurationVersion &&
-			(instance.DesiredState.CodeVersion != desiredState.CodeVersion ||
-				instance.DesiredState.ConfigurationVersion != desiredState.ConfigurationVersion) {
+		if s.matchesLabels(instance, labels) && s.needsUpdate(instance, desiredState) {
 			instanceCopy := *instance
 			matches = append(matches, &instanceCopy)
 		}
 	}
 
 	return matches, nil
+}
+
+// CountNeedingUpdate returns the count of instances that match labels and need state updates
+func (s *InventoryStore) CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	count := 0
+	for _, instance := range s.instances {
+		if s.matchesLabels(instance, labels) && s.needsUpdate(instance, desiredState) {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
+// needsUpdate checks if an instance needs an update based on desired state
+func (s *InventoryStore) needsUpdate(instance *inventory.Instance, desiredState inventory.State) bool {
+	return instance.CurrentState.CodeVersion != desiredState.CodeVersion ||
+		instance.CurrentState.ConfigurationVersion != desiredState.ConfigurationVersion
 }
 
 // UpdateLabels provides more granular control over label updates

@@ -1,5 +1,5 @@
 package simulator
 
 func main() {
-	
+
 }

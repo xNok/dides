@@ -13,27 +13,25 @@ var (
 
 // startDeployment initialize the deployment with the number of instance matching the batch size
 func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
-	// 1. Get all instances that match the deployment labels
-	// TODO: filter out instances that don't need updates
-	// TODO: apply the batch here and use a count to get the total
-	instances, err := s.inventory.GetInstancesByLabels(record.Request.Labels)
+	// 1. Determine desired state from the deployment request
+	desiredState := inventory.State{
+		CodeVersion:          record.Request.CodeVersion,
+		ConfigurationVersion: record.Request.ConfigurationVersion,
+	}
+
+	// 2. Get instances that match the deployment labels AND need updates (leverage database filtering)
+	instances, err := s.inventory.GetNeedingUpdate(record.Request.Labels, desiredState)
 	if err != nil {
 		return err
 	}
 
-	// 2. Initialize deployment progress
+	// 3. Initialize deployment progress
 	record.Progress = DeploymentProgress{
 		TotalInstances:      len(instances),
 		InProgressInstances: 0,
 		CompletedInstances:  0,
 		FailedInstances:     0,
 		CurrentBatch:        make([]string, 0),
-	}
-
-	// 3. Determine desired state from the deployment request
-	desiredState := inventory.State{
-		CodeVersion:          record.Request.CodeVersion,
-		ConfigurationVersion: record.Request.ConfigurationVersion,
 	}
 
 	// 4. If no instances need updates, mark deployment as completed
@@ -43,7 +41,7 @@ func (s *TriggerService) startDeployment(record *DeploymentRecord) error {
 		return s.store.Update(record)
 	}
 
-	// 5.. Start the first batch of deployments
+	// 5. Start the first batch of deployments
 	batchSize := record.Request.Configuration.BatchSize
 	if batchSize <= 0 {
 		batchSize = 1 // Default to 1 if not specified

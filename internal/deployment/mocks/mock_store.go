@@ -36,21 +36,6 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
-// GetByID mocks base method.
-func (m *MockStore) GetByID(id string) (*deployment.DeploymentRecord, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByID", id)
-	ret0, _ := ret[0].(*deployment.DeploymentRecord)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetByID indicates an expected call of GetByID.
-func (mr *MockStoreMockRecorder) GetByID(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockStore)(nil).GetByID), id)
-}
-
 // GetByStatus mocks base method.
 func (m *MockStore) GetByStatus(status deployment.DeploymentStatus) ([]*deployment.DeploymentRecord, error) {
 	m.ctrl.T.Helper()
@@ -117,6 +102,35 @@ func (m *MockInventoryService) EXPECT() *MockInventoryServiceMockRecorder {
 	return m.recorder
 }
 
+// CountByLabels mocks base method.
+func (m *MockInventoryService) CountByLabels(labels map[string]string) int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountByLabels", labels)
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// CountByLabels indicates an expected call of CountByLabels.
+func (mr *MockInventoryServiceMockRecorder) CountByLabels(labels interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByLabels", reflect.TypeOf((*MockInventoryService)(nil).CountByLabels), labels)
+}
+
+// CountNeedingUpdate mocks base method.
+func (m *MockInventoryService) CountNeedingUpdate(labels map[string]string, desiredState inventory.State) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountNeedingUpdate", labels, desiredState)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountNeedingUpdate indicates an expected call of CountNeedingUpdate.
+func (mr *MockInventoryServiceMockRecorder) CountNeedingUpdate(labels, desiredState interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountNeedingUpdate", reflect.TypeOf((*MockInventoryService)(nil).CountNeedingUpdate), labels, desiredState)
+}
+
 // GetInstancesByLabels mocks base method.
 func (m *MockInventoryService) GetInstancesByLabels(labels map[string]string) ([]*inventory.Instance, error) {
 	m.ctrl.T.Helper()
@@ -132,19 +146,19 @@ func (mr *MockInventoryServiceMockRecorder) GetInstancesByLabels(labels interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstancesByLabels", reflect.TypeOf((*MockInventoryService)(nil).GetInstancesByLabels), labels)
 }
 
-// GetInstancesWithState mocks base method.
-func (m *MockInventoryService) GetInstancesWithState(currentState, desiredState inventory.State) ([]*inventory.Instance, error) {
+// GetNeedingUpdate mocks base method.
+func (m *MockInventoryService) GetNeedingUpdate(labels map[string]string, desiredState inventory.State) ([]*inventory.Instance, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInstancesWithState", currentState, desiredState)
+	ret := m.ctrl.Call(m, "GetNeedingUpdate", labels, desiredState)
 	ret0, _ := ret[0].([]*inventory.Instance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetInstancesWithState indicates an expected call of GetInstancesWithState.
-func (mr *MockInventoryServiceMockRecorder) GetInstancesWithState(currentState, desiredState interface{}) *gomock.Call {
+// GetNeedingUpdate indicates an expected call of GetNeedingUpdate.
+func (mr *MockInventoryServiceMockRecorder) GetNeedingUpdate(labels, desiredState interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInstancesWithState", reflect.TypeOf((*MockInventoryService)(nil).GetInstancesWithState), currentState, desiredState)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNeedingUpdate", reflect.TypeOf((*MockInventoryService)(nil).GetNeedingUpdate), labels, desiredState)
 }
 
 // UpdateDesiredState mocks base method.

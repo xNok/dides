@@ -262,3 +262,150 @@ func TestInventoryStore_UpdateLabels(t *testing.T) {
 		t.Error("Expected region label to be removed from stored instance")
 	}
 }
+
+func TestInventoryStore_CountByLabels(t *testing.T) {
+	store := NewInventoryStore()
+
+	instance1 := &inventory.Instance{
+		IP:     "192.168.1.100",
+		Name:   "web-1",
+		Labels: map[string]string{"role": "web", "env": "prod"},
+	}
+
+	instance2 := &inventory.Instance{
+		IP:     "192.168.1.101",
+		Name:   "db-1",
+		Labels: map[string]string{"role": "db", "env": "prod"},
+	}
+
+	instance3 := &inventory.Instance{
+		IP:     "192.168.1.102",
+		Name:   "web-2",
+		Labels: map[string]string{"role": "web", "env": "test"},
+	}
+
+	store.Save(instance1)
+	store.Save(instance2)
+	store.Save(instance3)
+
+	// Test counting by single label
+	webCount := store.CountByLabels(map[string]string{"role": "web"})
+	if webCount != 2 {
+		t.Errorf("Expected 2 web instances, got %d", webCount)
+	}
+
+	// Test counting by multiple labels
+	prodWebCount := store.CountByLabels(map[string]string{"role": "web", "env": "prod"})
+	if prodWebCount != 1 {
+		t.Errorf("Expected 1 prod web instance, got %d", prodWebCount)
+	}
+
+	// Test counting with no matches
+	noMatchCount := store.CountByLabels(map[string]string{"role": "cache"})
+	if noMatchCount != 0 {
+		t.Errorf("Expected 0 cache instances, got %d", noMatchCount)
+	}
+}
+
+func TestInventoryStore_GetNeedingUpdate(t *testing.T) {
+	store := NewInventoryStore()
+
+	// Create instances with different states
+	instance1 := &inventory.Instance{
+		IP:     "192.168.1.100",
+		Name:   "web-1",
+		Labels: map[string]string{"role": "web", "env": "prod"},
+		CurrentState: inventory.State{
+			CodeVersion:          "v1.0.0",
+			ConfigurationVersion: "config-v1.0",
+		},
+	}
+
+	instance2 := &inventory.Instance{
+		IP:     "192.168.1.101",
+		Name:   "web-2",
+		Labels: map[string]string{"role": "web", "env": "prod"},
+		CurrentState: inventory.State{
+			CodeVersion:          "v2.0.0", // Already at desired version
+			ConfigurationVersion: "config-v1.0",
+		},
+	}
+
+	instance3 := &inventory.Instance{
+		IP:     "192.168.1.102",
+		Name:   "db-1",
+		Labels: map[string]string{"role": "db", "env": "prod"},
+		CurrentState: inventory.State{
+			CodeVersion:          "v1.0.0",
+			ConfigurationVersion: "config-v1.0",
+		},
+	}
+
+	store.Save(instance1)
+	store.Save(instance2)
+	store.Save(instance3)
+
+	desiredState := inventory.State{
+		CodeVersion:          "v2.0.0",
+		ConfigurationVersion: "config-v1.0",
+	}
+
+	// Get web instances needing update
+	instances, err := store.GetNeedingUpdate(map[string]string{"role": "web"}, desiredState)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Should only return instance1 (web-1) since instance2 already has v2.0.0
+	if len(instances) != 1 {
+		t.Errorf("Expected 1 web instance needing update, got %d", len(instances))
+	}
+
+	if len(instances) > 0 && instances[0].Name != "web-1" {
+		t.Errorf("Expected web-1, got %s", instances[0].Name)
+	}
+}
+
+func TestInventoryStore_CountNeedingUpdate(t *testing.T) {
+	store := NewInventoryStore()
+
+	// Create instances with different states
+	instance1 := &inventory.Instance{
+		IP:     "192.168.1.100",
+		Name:   "web-1",
+		Labels: map[string]string{"role": "web", "env": "prod"},
+		CurrentState: inventory.State{
+			CodeVersion:          "v1.0.0",
+			ConfigurationVersion: "config-v1.0",
+		},
+	}
+
+	instance2 := &inventory.Instance{
+		IP:     "192.168.1.101",
+		Name:   "web-2",
+		Labels: map[string]string{"role": "web", "env": "prod"},
+		CurrentState: inventory.State{
+			CodeVersion:          "v2.0.0", // Already at desired version
+			ConfigurationVersion: "config-v1.0",
+		},
+	}
+
+	store.Save(instance1)
+	store.Save(instance2)
+
+	desiredState := inventory.State{
+		CodeVersion:          "v2.0.0",
+		ConfigurationVersion: "config-v1.0",
+	}
+
+	// Count instances needing update
+	count, err := store.CountNeedingUpdate(map[string]string{"role": "web"}, desiredState)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Only instance1 needs update (v1.0.0 -> v2.0.0)
+	if count != 1 {
+		t.Errorf("Expected 1 web instance needing update, got %d", count)
+	}
+}

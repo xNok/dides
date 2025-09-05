@@ -39,8 +39,12 @@ func TestTriggerService_TriggerDeployment(t *testing.T) {
 		record.ID = "deployment-001"
 		return nil
 	}).Times(1)
-	// Mock inventory service calls for startDeployment
-	mockInventory.EXPECT().GetInstancesByLabels(req.Labels).Return([]*inventory.Instance{}, nil).Times(1)
+	// Mock inventory service calls for startDeployment - now using the efficient method
+	desiredState := inventory.State{
+		CodeVersion:          req.CodeVersion,
+		ConfigurationVersion: req.ConfigurationVersion,
+	}
+	mockInventory.EXPECT().GetNeedingUpdate(req.Labels, desiredState).Return([]*inventory.Instance{}, nil).Times(1)
 	mockStore.EXPECT().Update(gomock.Any()).Return(nil).Times(1)
 
 	err := service.TriggerDeployment(ctx, &req)

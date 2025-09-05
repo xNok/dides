@@ -97,7 +97,7 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, deployResp.StatusCode)
 
 	// Wait for the deployment to progress
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 
 	// 6. Deployment is in progress - batch size need to be respected
 	updatedInstances = testUtils.GetAllInstances(t)
@@ -106,6 +106,24 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, "", updatedInstances[2].DesiredState.CodeVersion)
 	assert.Equal(t, "", updatedInstances[3].DesiredState.CodeVersion)
 
-	
+	// 7. Progress the deployment - nothing should happen yet (instances haven't updated their current state)
+	progressResponse, progressResp := testUtils.ProgressDeployment(t)
+	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
+	assert.Equal(t, deployment.Running, progressResponse.Status)
+	assert.Equal(t, []string{registeredNames[0], registeredNames[1]}, progressResponse.Progress.CurrentBatch)
+	t.Logf("Successfully progressed deployment. Status: %v, Progress: %+v", progressResponse.Status, progressResponse.Progress)
+
+	// 8. instance report their status
+	testUtils.UpdateInstance(t, registeredNames[0], testData.CreateHealthyUpdate("v2.0.0", "config-v2"))
+	testUtils.UpdateInstance(t, registeredNames[1], testData.CreateHealthyUpdate("v2.0.0", "config-v2"))
+	testUtils.UpdateInstance(t, registeredNames[2], testData.CreateUnknownUpdate())
+	testUtils.UpdateInstance(t, registeredNames[3], testData.CreateUnknownUpdate())
+
+	// Wait for the deployment to progress
+	time.Sleep(500 * time.Millisecond)
+	progressResponse, progressResp = testUtils.ProgressDeployment(t)
+	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
+	assert.Equal(t, deployment.Running, progressResponse.Status)
+	assert.Equal(t, []string{registeredNames[2]}, progressResponse.Progress.CurrentBatch)
 
 }

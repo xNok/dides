@@ -49,3 +49,17 @@ type DeploymentProgress struct {
 	// Instances currently in the active batch
 	CurrentBatch []string `json:"current_batch"`
 }
+
+// DeploymentProgressResponse represents the response from progressing a deployment
+type DeploymentProgressResponse struct {
+	Message    string             `json:"message"`
+	Deployment *DeploymentRecord  `json:"deployment"`
+	Status     DeploymentStatus   `json:"status"`
+	Progress   DeploymentProgress `json:"progress"`
+}
+
+// DeploymentStatusResponse represents the response from getting deployment status
+type DeploymentStatusResponse struct {
+	Deployments []*DeploymentRecord `json:"deployments"`
+	Count       int                 `json:"count"`
+}

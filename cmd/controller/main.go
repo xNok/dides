@@ -56,6 +56,8 @@ func setupRouter() *chi.Mux {
 		r.Patch("/instances/{instanceID}", updateInstance)
 	})
 
+	// Interact with the deployment process
+	// Since only one in-flight deployment is allowed, we skip the need for an id
 	r.Route("/deploy", func(r chi.Router) {
 		// Trigger a deploment
 		r.Post("/", deployTrigger)
@@ -214,15 +216,15 @@ func deploymentStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create structured response
+	response := deployment.DeploymentStatusResponse{
+		Deployments: deployments,
+		Count:       len(deployments),
+	}
+
 	// Return deployment status
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	response := map[string]interface{}{
-		"deployments": deployments,
-		"count":       len(deployments),
-	}
-
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -237,16 +239,16 @@ func deploymentProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create structured response
+	response := deployment.DeploymentProgressResponse{
+		Message:    "Deployment progressed successfully",
+		Deployment: record,
+		Status:     record.Status,
+		Progress:   record.Progress,
+	}
+
 	// Return updated status
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	response := map[string]interface{}{
-		"message":    "Deployment progressed successfully",
-		"deployment": record,
-		"status":     record.Status,
-		"progress":   record.Progress,
-	}
-
 	json.NewEncoder(w).Encode(response)
 }

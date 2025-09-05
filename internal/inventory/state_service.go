@@ -32,8 +32,17 @@ func (s *StateService) UpdateDesiredState(instanceKey string, state State) error
 	return err
 }
 
-// GetInstancesWithState returns instances that need updates (current != desired)
-// This is now delegated to the store for more efficient database-level filtering
-func (s *StateService) GetInstancesWithState(currentState, desiredState State) ([]*Instance, error) {
-	return s.store.GetInstancesWithState(currentState, desiredState)
+// CountByLabels returns the count of instances matching the given labels
+func (s *StateService) CountByLabels(labels map[string]string) int {
+	return s.store.CountByLabels(labels)
+}
+
+// GetNeedingUpdate returns instances that match labels and need state updates
+func (s *StateService) GetNeedingUpdate(labels map[string]string, desiredState State) ([]*Instance, error) {
+	return s.store.GetNeedingUpdate(labels, desiredState)
+}
+
+// CountNeedingUpdate returns the count of instances that match labels and need state updates
+func (s *StateService) CountNeedingUpdate(labels map[string]string, desiredState State) (int, error) {
+	return s.store.CountNeedingUpdate(labels, desiredState)
 }

@@ -64,9 +64,14 @@ type ListResponse struct {
 }
 
 type Store interface {
+	// CRUD
 	Save(instance *Instance) error
 	Update(key string, patch InstancePatch) (*Instance, error)
 	GetAll() []*Instance
 	GetByLabels(labels map[string]string) []*Instance
-	GetInstancesWithState(currentState, desiredState State) ([]*Instance, error)
+	CountByLabels(labels map[string]string) int
+
+	// Search for update
+	GetNeedingUpdate(labels map[string]string, desiredState State) ([]*Instance, error)
+	CountNeedingUpdate(labels map[string]string, desiredState State) (int, error)
 }
