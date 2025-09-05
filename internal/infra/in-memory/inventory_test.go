@@ -1,0 +1,308 @@
+package inmemory
+
+import (
+	"testing"
+	"time"
+
+	"github.com/xnok/dides/internal/inventory"
+)
+
+func TestInventoryStore_Save(t *testing.T) {
+	store := NewInventoryStore()
+
+	instance := &inventory.Instance{
+		IP:       "192.168.1.100",
+		Name:     "test-instance",
+		Labels:   map[string]string{"env": "test"},
+		LastPing: time.Now(),
+		Status:   inventory.HEALTHY,
+	}
+
+	err := store.Save(instance)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Test retrieval
+	retrieved, exists := store.Get("test-instance")
+	if !exists {
+		t.Fatal("Expected instance to exist")
+	}
+
+	if retrieved.IP != instance.IP {
+		t.Errorf("Expected IP %s, got %s", instance.IP, retrieved.IP)
+	}
+
+	if retrieved.Name != instance.Name {
+		t.Errorf("Expected Name %s, got %s", instance.Name, retrieved.Name)
+	}
+}
+
+func TestInventoryStore_GetAll(t *testing.T) {
+	store := NewInventoryStore()
+
+	instance1 := &inventory.Instance{
+		IP:   "192.168.1.100",
+		Name: "instance-1",
+	}
+
+	instance2 := &inventory.Instance{
+		IP:   "192.168.1.101",
+		Name: "instance-2",
+	}
+
+	store.Save(instance1)
+	store.Save(instance2)
+
+	all := store.GetAll()
+	if len(all) != 2 {
+		t.Errorf("Expected 2 instances, got %d", len(all))
+	}
+}
+
+func TestInventoryStore_GetByLabels(t *testing.T) {
+	store := NewInventoryStore()
+
+	instance1 := &inventory.Instance{
+		IP:     "192.168.1.100",
+		Name:   "web-1",
+		Labels: map[string]string{"role": "web", "env": "prod"},
+	}
+
+	instance2 := &inventory.Instance{
+		IP:     "192.168.1.101",
+		Name:   "db-1",
+		Labels: map[string]string{"role": "db", "env": "prod"},
+	}
+
+	instance3 := &inventory.Instance{
+		IP:     "192.168.1.102",
+		Name:   "web-2",
+		Labels: map[string]string{"role": "web", "env": "test"},
+	}
+
+	store.Save(instance1)
+	store.Save(instance2)
+	store.Save(instance3)
+
+	// Test finding by single label
+	webInstances := store.GetByLabels(map[string]string{"role": "web"})
+	if len(webInstances) != 2 {
+		t.Errorf("Expected 2 web instances, got %d", len(webInstances))
+	}
+
+	// Test finding by multiple labels
+	prodWebInstances := store.GetByLabels(map[string]string{"role": "web", "env": "prod"})
+	if len(prodWebInstances) != 1 {
+		t.Errorf("Expected 1 prod web instance, got %d", len(prodWebInstances))
+	}
+
+	if prodWebInstances[0].Name != "web-1" {
+		t.Errorf("Expected web-1, got %s", prodWebInstances[0].Name)
+	}
+}
+
+func TestInventoryStore_Delete(t *testing.T) {
+	store := NewInventoryStore()
+
+	instance := &inventory.Instance{
+		IP:   "192.168.1.100",
+		Name: "test-instance",
+	}
+
+	store.Save(instance)
+
+	// Verify it exists
+	_, exists := store.Get("test-instance")
+	if !exists {
+		t.Fatal("Expected instance to exist before deletion")
+	}
+
+	// Delete it
+	deleted := store.Delete("test-instance")
+	if !deleted {
+		t.Fatal("Expected deletion to return true")
+	}
+
+	// Verify it's gone
+	_, exists = store.Get("test-instance")
+	if exists {
+		t.Fatal("Expected instance to not exist after deletion")
+	}
+}
+
+func TestInventoryStore_Update(t *testing.T) {
+	store := NewInventoryStore()
+
+	// Create initial instance
+	instance := &inventory.Instance{
+		IP:       "192.168.1.100",
+		Name:     "test-instance",
+		Labels:   map[string]string{"env": "test", "version": "1.0"},
+		LastPing: time.Now().Add(-time.Hour),
+		Status:   inventory.UNKNOWN,
+	}
+
+	store.Save(instance)
+
+	// Test partial update
+	newIP := "192.168.1.200"
+	newStatus := inventory.HEALTHY
+	newTime := time.Now()
+
+	patch := inventory.InstancePatch{
+		IP:       &newIP,
+		Status:   &newStatus,
+		LastPing: &newTime,
+		Labels:   map[string]string{"env": "prod", "region": "us-west"}, // Will merge with existing
+	}
+
+	updated, err := store.Update("test-instance", patch)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Verify updates
+	if updated.IP != newIP {
+		t.Errorf("Expected IP %s, got %s", newIP, updated.IP)
+	}
+
+	if updated.Status != newStatus {
+		t.Errorf("Expected Status %v, got %v", newStatus, updated.Status)
+	}
+
+	if updated.Name != "test-instance" {
+		t.Errorf("Expected Name to remain unchanged: %s", updated.Name)
+	}
+
+	// Verify label merging
+	if updated.Labels["env"] != "prod" {
+		t.Errorf("Expected env label to be updated to 'prod', got %s", updated.Labels["env"])
+	}
+
+	if updated.Labels["version"] != "1.0" {
+		t.Errorf("Expected version label to remain '1.0', got %s", updated.Labels["version"])
+	}
+
+	if updated.Labels["region"] != "us-west" {
+		t.Errorf("Expected region label to be 'us-west', got %s", updated.Labels["region"])
+	}
+
+	// Verify in store
+	retrieved, exists := store.Get("test-instance")
+	if !exists {
+		t.Fatal("Expected updated instance to exist in store")
+	}
+
+	if retrieved.IP != newIP {
+		t.Errorf("Expected stored IP %s, got %s", newIP, retrieved.IP)
+	}
+}
+
+func TestInventoryStore_UpdateWithNameChange(t *testing.T) {
+	store := NewInventoryStore()
+
+	// Create initial instance
+	instance := &inventory.Instance{
+		IP:   "192.168.1.100",
+		Name: "old-name",
+	}
+
+	store.Save(instance)
+
+	// Update name
+	newName := "new-name"
+	patch := inventory.InstancePatch{
+		Name: &newName,
+	}
+
+	updated, err := store.Update("old-name", patch)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if updated.Name != newName {
+		t.Errorf("Expected Name %s, got %s", newName, updated.Name)
+	}
+
+	// Verify old key is gone and new key exists
+	_, exists := store.Get("old-name")
+	if exists {
+		t.Error("Expected old key to not exist")
+	}
+
+	retrieved, exists := store.Get("new-name")
+	if !exists {
+		t.Fatal("Expected new key to exist")
+	}
+
+	if retrieved.Name != newName {
+		t.Errorf("Expected retrieved Name %s, got %s", newName, retrieved.Name)
+	}
+}
+
+func TestInventoryStore_UpdateNonExistent(t *testing.T) {
+	store := NewInventoryStore()
+
+	newStatus := inventory.HEALTHY
+	patch := inventory.InstancePatch{
+		Status: &newStatus,
+	}
+
+	_, err := store.Update("non-existent", patch)
+	if err != ErrInstanceNotFound {
+		t.Errorf("Expected ErrInstanceNotFound, got %v", err)
+	}
+}
+
+func TestInventoryStore_UpdateLabels(t *testing.T) {
+	store := NewInventoryStore()
+
+	// Create initial instance
+	instance := &inventory.Instance{
+		IP:     "192.168.1.100",
+		Name:   "test-instance",
+		Labels: map[string]string{"env": "test", "version": "1.0", "region": "us-east"},
+	}
+
+	store.Save(instance)
+
+	// Update labels: change env, remove region, add new label
+	labelUpdates := map[string]string{
+		"env":    "prod",    // update existing
+		"region": "",        // remove (empty string)
+		"team":   "backend", // add new
+	}
+
+	updated, err := store.UpdateLabels("test-instance", labelUpdates)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Verify label changes
+	if updated.Labels["env"] != "prod" {
+		t.Errorf("Expected env to be 'prod', got %s", updated.Labels["env"])
+	}
+
+	if updated.Labels["version"] != "1.0" {
+		t.Errorf("Expected version to remain '1.0', got %s", updated.Labels["version"])
+	}
+
+	if updated.Labels["team"] != "backend" {
+		t.Errorf("Expected team to be 'backend', got %s", updated.Labels["team"])
+	}
+
+	if _, exists := updated.Labels["region"]; exists {
+		t.Error("Expected region label to be removed")
+	}
+
+	// Verify in store
+	retrieved, exists := store.Get("test-instance")
+	if !exists {
+		t.Fatal("Expected instance to exist in store")
+	}
+
+	if _, exists := retrieved.Labels["region"]; exists {
+		t.Error("Expected region label to be removed from stored instance")
+	}
+}
