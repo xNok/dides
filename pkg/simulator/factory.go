@@ -3,6 +3,7 @@ package simulator
 import (
 	"fmt"
 
+	"github.com/xnok/dides/internal/deployment"
 	"github.com/xnok/dides/internal/inventory"
 )
 
@@ -117,6 +118,14 @@ func (tdg *TestDataGenerator) CreateUpdatePatch(status *inventory.Status, labels
 	}
 }
 
+// CreateUnknownUpdate creates an InstancePatch with UNKNOWN status and version information
+func (tdg *TestDataGenerator) CreateUnknownUpdate() inventory.InstancePatch {
+	status := inventory.UNKNOWN
+	return inventory.InstancePatch{
+		Status: &status,
+	}
+}
+
 // CreateHealthyUpdate creates an InstancePatch with HEALTHY status and version information
 func (tdg *TestDataGenerator) CreateHealthyUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
 	status := inventory.HEALTHY
@@ -144,5 +153,22 @@ func (tdg *TestDataGenerator) CreateFailedUpdate(codeVersion, configurationVersi
 		Status:               &status,
 		CodeVersion:          &codeVersion,
 		ConfigurationVersion: &configurationVersion,
+	}
+}
+
+// CreateDeploymentRequest creates a DeploymentRequest for testing
+func (tdg *TestDataGenerator) CreateDeploymentRequest(codeVersion, configurationVersion string, labels map[string]string) deployment.DeploymentRequest {
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
+	return deployment.DeploymentRequest{
+		CodeVersion:          codeVersion,
+		ConfigurationVersion: configurationVersion,
+		Labels:               labels,
+		Configuration: deployment.Configuration{
+			BatchSize:        2,
+			FailureThreshold: 1,
+		},
 	}
 }

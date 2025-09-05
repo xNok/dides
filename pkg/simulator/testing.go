@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/xnok/dides/internal/deployment"
 	"github.com/xnok/dides/internal/inventory"
 )
 
@@ -148,6 +149,27 @@ func (tu *TestUtilities) GetAllInstances(t *testing.T) []*inventory.Instance {
 	}
 
 	return response.Instances
+}
+
+// TriggerDeployment triggers a deployment request
+func (tu *TestUtilities) TriggerDeployment(t *testing.T, deploymentRequest deployment.DeploymentRequest) *http.Response {
+	t.Helper()
+
+	jsonData, err := json.Marshal(deploymentRequest)
+	if err != nil {
+		t.Fatalf("Failed to marshal deployment request: %v", err)
+	}
+
+	resp, err := http.Post(
+		tu.Server.URL+"/deploy/",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+	if err != nil {
+		t.Fatalf("Failed to trigger deployment: %v", err)
+	}
+
+	return resp
 }
 
 // MakeHTTPRequest is a generic helper for making HTTP requests

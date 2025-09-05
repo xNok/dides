@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -172,6 +173,11 @@ func deployTrigger(w http.ResponseWriter, r *http.Request) {
 	// Trigger the deployment using the trigger service
 	err := triggerService.TriggerDeployment(&req)
 	if err != nil {
+		if errors.Is(err, deployment.ErrRolloutInProgress) {
+			http.Error(w, "Deployment is already in progress", http.StatusConflict)
+			return
+		}
+
 		http.Error(w, "Failed to trigger deployment", http.StatusInternalServerError)
 		return
 	}
