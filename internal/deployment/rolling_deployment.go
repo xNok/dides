@@ -150,7 +150,12 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 		return record, rd.store.Update(record)
 	}
 
-	// 3. Get the next batch = batch_size - inflight
+	// 3. If the current batch is still in progress, wait
+	if progress == record.Request.Configuration.BatchSize {
+		return record, rd.store.Update(record)
+	}
+
+	// 4. Get the next batch = batch_size - inflight
 	opts := &inventory.GetNeedingUpdateOptions{
 		Limit: record.Request.Configuration.BatchSize - record.Progress.InProgressInstances,
 	}
