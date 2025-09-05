@@ -27,7 +27,8 @@ func main() {
 
 	// Initialize the deployment store and trigger service
 	deploymentStore := inmemory.NewDeploymentStore()
-	triggerService = deployment.NewTriggerService(deploymentStore)
+	deploymentLock := inmemory.NewInMemoryLocker()
+	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock)
 
 	// Setup REST Router
 	r := setupRouter()
@@ -162,6 +163,7 @@ func updateInstance(w http.ResponseWriter, r *http.Request) {
 
 // deployTrigger starts a deployment to a given set of instances
 func deployTrigger(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	var req deployment.DeploymentRequest
 
 	// Parse the request body
@@ -171,7 +173,7 @@ func deployTrigger(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Trigger the deployment using the trigger service
-	err := triggerService.TriggerDeployment(&req)
+	err := triggerService.TriggerDeployment(ctx, &req)
 	if err != nil {
 		if errors.Is(err, deployment.ErrRolloutInProgress) {
 			http.Error(w, "Deployment is already in progress", http.StatusConflict)

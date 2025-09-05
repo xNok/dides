@@ -19,7 +19,8 @@ func setupTestServer() *httptest.Server {
 	updateService = inventory.NewUpdateService(inventoryStore)
 
 	deploymentStore := inmemory.NewDeploymentStore()
-	triggerService = deployment.NewTriggerService(deploymentStore)
+	deploymentLock := inmemory.NewInMemoryLocker()
+	triggerService = deployment.NewTriggerService(deploymentStore, deploymentLock)
 
 	// Setup the router (same as main)
 	r := setupRouter()

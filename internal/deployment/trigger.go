@@ -1,6 +1,13 @@
 package deployment
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
+
+const (
+	lockKey = "deployment"
+)
 
 //go:generate mockgen -source=trigger.go -destination=mocks/mock_store.go -package=mocks
 
@@ -15,13 +22,20 @@ type Store interface {
 	GetByStatus(status DeploymentStatus) ([]*DeploymentRecord, error)
 }
 
-type TriggerService struct {
-	store Store
+type Locker interface {
+	Lock(ctx context.Context, key string) error
+	Unlock(ctx context.Context, key string) error
 }
 
-func NewTriggerService(store Store) *TriggerService {
+type TriggerService struct {
+	store Store
+	lock  Locker
+}
+
+func NewTriggerService(store Store, lock Locker) *TriggerService {
 	return &TriggerService{
 		store: store,
+		lock:  lock,
 	}
 }
 
@@ -35,10 +49,16 @@ func (r DeploymentRequest) Validate() error {
 }
 
 // TriggerDeployment initiates a new deployment
-func (s *TriggerService) TriggerDeployment(req *DeploymentRequest) error {
+func (s *TriggerService) TriggerDeployment(ctx context.Context, req *DeploymentRequest) error {
 	if err := req.Validate(); err != nil {
 		return err
 	}
+
+	// Concurency check we need a lock here in case two or more requests has arrived
+	if err := s.lock.Lock(ctx, lockKey); err != nil {
+		return err
+	}
+	defer s.lock.Unlock(ctx, lockKey)
 
 	// 1. Feature Request: If a deployment rollout is in progress, a new deployment rollout cannot start
 	if s.isRolloutInProgress() {
