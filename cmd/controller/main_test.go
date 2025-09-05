@@ -131,10 +131,10 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
 	assert.Equal(t, deployment.Running, progress.Status)
 	assert.Equal(t, deployment.DeploymentProgress{
-		TotalInstances:      3,
-		CompletedInstances:  2,
-		InProgressInstances: 1,
-		FailedInstances:     0,
+		TotalMatchingInstances: 3,
+		CompletedInstances:     2,
+		InProgressInstances:    1,
+		FailedInstances:        0,
 	}, progress.Progress)
 
 	// Wait for the deployment to progress
@@ -154,10 +154,10 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
 	assert.Equal(t, deployment.Completed, progress.Status)
 	assert.Equal(t, deployment.DeploymentProgress{
-		TotalInstances:      3,
-		CompletedInstances:  3,
-		InProgressInstances: 0,
-		FailedInstances:     0,
+		TotalMatchingInstances: 3,
+		CompletedInstances:     3,
+		InProgressInstances:    0,
+		FailedInstances:        0,
 	}, progress.Progress)
 
 	// ------------------------------------------------------
@@ -203,10 +203,10 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
 	assert.Equal(t, deployment.Failed, progress.Status)
 	assert.Equal(t, deployment.DeploymentProgress{
-		TotalInstances:      3,
-		CompletedInstances:  1, // 1 successful
-		InProgressInstances: 0,
-		FailedInstances:     1,
+		TotalMatchingInstances: 3,
+		CompletedInstances:     1, // 1 successful
+		InProgressInstances:    0,
+		FailedInstances:        1,
 	}, progress.Progress)
 
 	// 13. Deployment is failed - a rollback should have been triggered automatically
@@ -239,10 +239,10 @@ func TestController_RegisterInstancesFromConfig(t *testing.T) {
 	assert.Equal(t, http.StatusOK, progressResp.StatusCode)
 	assert.Equal(t, deployment.Completed, progress.Status)
 	assert.Equal(t, deployment.DeploymentProgress{
-		TotalInstances:      3,
-		CompletedInstances:  3, // 3 instances are at the target version
-		InProgressInstances: 0,
-		FailedInstances:     0,
+		TotalMatchingInstances: 3,
+		CompletedInstances:     3, // 3 instances are at the target version
+		InProgressInstances:    0,
+		FailedInstances:        0,
 	}, progress.Progress)
 
 }

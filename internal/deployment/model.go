@@ -42,7 +42,7 @@ type DeploymentRecord struct {
 // DeploymentProgress tracks the progress of a deployment
 type DeploymentProgress struct {
 	// Total number of instances that match the deployment labels
-	TotalInstances int `json:"total_instances"`
+	TotalMatchingInstances int `json:"total_instances"`
 	// Number of instances currently being updated (in progress)
 	InProgressInstances int `json:"in_progress_instances"`
 	// Number of instances successfully updated

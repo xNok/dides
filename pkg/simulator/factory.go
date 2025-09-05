@@ -138,18 +138,6 @@ func (tdg *TestDataGenerator) CreateHealthyUpdate(codeVersion, configurationVers
 	}
 }
 
-// CreateDegradedUpdate creates an InstancePatch with DEGRADED status and version information
-func (tdg *TestDataGenerator) CreateDegradedUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
-	status := inventory.DEGRADED
-	return inventory.InstancePatch{
-		Status: &status,
-		CurrentState: &inventory.State{
-			CodeVersion:          codeVersion,
-			ConfigurationVersion: configurationVersion,
-		},
-	}
-}
-
 // CreateFailedUpdate creates an InstancePatch with FAILED status and version information
 func (tdg *TestDataGenerator) CreateFailedUpdate(codeVersion, configurationVersion string) inventory.InstancePatch {
 	status := inventory.FAILED

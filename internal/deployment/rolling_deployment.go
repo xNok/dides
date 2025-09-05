@@ -52,15 +52,15 @@ func (rd *RollingDeployment) StartDeployment(record *DeploymentRecord) error {
 		ConfigurationVersion: record.Request.ConfigurationVersion,
 	}
 
-	// 2. Get total count of instances needing update for progress tracking
+	// 2. Get total count of instances matching labels for progress tracking
 	totalInstances := rd.inventory.CountByLabels(record.Request.Labels)
 
 	// 3. Initialize deployment progress
 	record.Progress = DeploymentProgress{
-		TotalInstances:      totalInstances,
-		InProgressInstances: 0,
-		CompletedInstances:  0,
-		FailedInstances:     0,
+		TotalMatchingInstances: totalInstances,
+		InProgressInstances:    0,
+		CompletedInstances:     0,
+		FailedInstances:        0,
 	}
 
 	// 4. Get instances that match the deployment labels AND need updates
@@ -147,7 +147,7 @@ func (rd *RollingDeployment) ProgressDeployment(ctx context.Context, record *Dep
 	}
 
 	// 2. If there are still instances in progress, wait for them to complete
-	if completed >= record.Progress.TotalInstances {
+	if completed >= record.Progress.TotalMatchingInstances {
 		record.Status = Completed
 		record.Progress.CompletedInstances = completed
 		return record, rd.store.Update(record)

@@ -7,7 +7,6 @@ type Status int
 const (
 	UNKNOWN Status = iota // UNKNOWN is the default on when instance is registered/not used
 	HEALTHY
-	DEGRADED
 	FAILED
 )
 

@@ -94,7 +94,7 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		}
 
 		// Mock expectations
-		mockInventory.EXPECT().CountNeedingUpdate(record.Request.Labels, desiredState).Return(5, nil).Times(1)
+		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(5).Times(1)
 		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).Return([]*inventory.Instance{}, nil).Times(1)
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			// Verify the deployment is marked as completed
@@ -139,14 +139,14 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		}
 
 		// Mock expectations
-		mockInventory.EXPECT().CountNeedingUpdate(record.Request.Labels, desiredState).Return(10, nil).Times(1)
+		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(10).Times(1)
 		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).Return(instances, nil).Times(1)
 		mockInventory.EXPECT().UpdateDesiredState("instance-1", desiredState).Return(nil).Times(1)
 		mockInventory.EXPECT().UpdateDesiredState("instance-2", desiredState).Return(nil).Times(1)
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			// Verify the progress is updated correctly
-			if r.Progress.TotalInstances != 10 {
-				t.Errorf("Expected 10 total instances, got %d", r.Progress.TotalInstances)
+			if r.Progress.TotalMatchingInstances != 10 {
+				t.Errorf("Expected 10 total instances, got %d", r.Progress.TotalMatchingInstances)
 			}
 			if r.Progress.InProgressInstances != 2 {
 				t.Errorf("Expected 2 in-progress instances, got %d", r.Progress.InProgressInstances)
@@ -157,30 +157,6 @@ func TestRollingDeployment_StartDeployment(t *testing.T) {
 		err := rollingDeployment.StartDeployment(record)
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
-		}
-	})
-
-	// Test case: CountNeedingUpdate error
-	t.Run("count_needing_update_error", func(t *testing.T) {
-		record := &deployment.DeploymentRecord{
-			Request: deployment.DeploymentRequest{
-				CodeVersion:          "v1.0.0",
-				ConfigurationVersion: "config-v1.0",
-				Labels:               map[string]string{"env": "prod"},
-			},
-		}
-
-		desiredState := inventory.State{
-			CodeVersion:          "v1.0.0",
-			ConfigurationVersion: "config-v1.0",
-		}
-
-		countErr := errors.New("count error")
-		mockInventory.EXPECT().CountNeedingUpdate(record.Request.Labels, desiredState).Return(0, countErr).Times(1)
-
-		err := rollingDeployment.StartDeployment(record)
-		if err != countErr {
-			t.Errorf("Expected count error, got %v", err)
 		}
 	})
 }
@@ -228,51 +204,51 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 
 		// Expected progress states at each step
 		step1Progress := deployment.DeploymentProgress{
-			TotalInstances:      5,
-			InProgressInstances: 2, // instances 1, 2 started
-			CompletedInstances:  0,
-			FailedInstances:     0,
+			TotalMatchingInstances: 5,
+			InProgressInstances:    2, // instances 1, 2 started
+			CompletedInstances:     0,
+			FailedInstances:        0,
 		}
 
 		step2Progress := deployment.DeploymentProgress{
-			TotalInstances:      5,
-			InProgressInstances: 2, // instances 1, 2 still updating
-			CompletedInstances:  0,
-			FailedInstances:     0,
+			TotalMatchingInstances: 5,
+			InProgressInstances:    2, // instances 1, 2 still updating
+			CompletedInstances:     0,
+			FailedInstances:        0,
 		}
 
 		step3Progress := deployment.DeploymentProgress{
-			TotalInstances:      5,
-			InProgressInstances: 0, // No instances in progress (instances 1,2 completed, 3,4 not started yet)
-			CompletedInstances:  2, // instances 1, 2 completed
-			FailedInstances:     0,
+			TotalMatchingInstances: 5,
+			InProgressInstances:    0, // No instances in progress (instances 1,2 completed, 3,4 not started yet)
+			CompletedInstances:     2, // instances 1, 2 completed
+			FailedInstances:        0,
 		}
 
 		step4Progress := deployment.DeploymentProgress{
-			TotalInstances:      5,
-			InProgressInstances: 2, // instances 3, 4 in progress (respects batch size)
-			CompletedInstances:  2, // instances 1, 2 completed
-			FailedInstances:     0,
+			TotalMatchingInstances: 5,
+			InProgressInstances:    2, // instances 3, 4 in progress (respects batch size)
+			CompletedInstances:     2, // instances 1, 2 completed
+			FailedInstances:        0,
 		}
 
 		step5Progress := deployment.DeploymentProgress{
-			TotalInstances:      5,
-			InProgressInstances: 2, // This will be fixed once the logic is corrected - should be 1 for instance 5
-			CompletedInstances:  4, // instances 1, 2, 3, 4 completed
-			FailedInstances:     0,
+			TotalMatchingInstances: 5,
+			InProgressInstances:    2, // This will be fixed once the logic is corrected - should be 1 for instance 5
+			CompletedInstances:     4, // instances 1, 2, 3, 4 completed
+			FailedInstances:        0,
 		}
 
 		finalProgress := deployment.DeploymentProgress{
-			TotalInstances:      5,
-			InProgressInstances: 0, // all instances completed
-			CompletedInstances:  5, // all instances completed
-			FailedInstances:     0,
+			TotalMatchingInstances: 5,
+			InProgressInstances:    0, // all instances completed
+			CompletedInstances:     5, // all instances completed
+			FailedInstances:        0,
 		}
 
 		// Helper function to validate progress
 		validateProgress := func(actual deployment.DeploymentProgress, expected deployment.DeploymentProgress, step string) {
-			if actual.TotalInstances != expected.TotalInstances {
-				t.Errorf("%s: Expected %d total instances, got %d", step, expected.TotalInstances, actual.TotalInstances)
+			if actual.TotalMatchingInstances != expected.TotalMatchingInstances {
+				t.Errorf("%s: Expected %d total instances, got %d", step, expected.TotalMatchingInstances, actual.TotalMatchingInstances)
 			}
 			if actual.InProgressInstances != expected.InProgressInstances {
 				t.Errorf("%s: Expected %d in-progress instances, got %d", step, expected.InProgressInstances, actual.InProgressInstances)
@@ -289,7 +265,7 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		t.Log("Step 1: Starting deployment")
 
 		// Mock expectations for StartDeployment
-		mockInventory.EXPECT().CountNeedingUpdate(record.Request.Labels, desiredState).Return(5, nil).Times(1)
+		mockInventory.EXPECT().CountByLabels(record.Request.Labels).Return(5).Times(1)
 		mockInventory.EXPECT().GetNeedingUpdate(record.Request.Labels, desiredState, gomock.Any()).DoAndReturn(
 			func(labels map[string]string, state inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
 				// Return first 2 instances for the first batch
@@ -500,9 +476,9 @@ func TestTriggerService_ProgressDeployment(t *testing.T) {
 			},
 			Status: deployment.Running,
 			Progress: deployment.DeploymentProgress{
-				TotalInstances:      10,
-				InProgressInstances: 2,
-				CompletedInstances:  8,
+				TotalMatchingInstances: 10,
+				InProgressInstances:    2,
+				CompletedInstances:     8,
 			},
 		}
 
