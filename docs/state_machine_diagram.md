@@ -73,7 +73,7 @@ flowchart TD
     D -->|Yes| E[Return ErrRolloutInProgress]
     D -->|No| F[Acquire Lock]
     F --> G[Save Deployment Record with Status=Running]
-    G --> H[StartDeployment()]
+    G --> H[StartDeployment]
     
     H --> I[Calculate Total Instances Needing Update]
     I --> J{Any Instances Need Update?}
@@ -136,7 +136,7 @@ flowchart TD
     H -->|No| I[Return ErrNoPreviousDeploymentFound]
     H -->|Yes| J[Create Rollback Request]
     J --> K[Save New Deployment Record]
-    K --> L[StartDeployment() with Previous Versions]
+    K --> L[StartDeployment with Previous Versions]
     L --> M[Release Lock]
     M --> N[End: Rollback Started]
 ```
