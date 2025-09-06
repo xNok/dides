@@ -58,6 +58,10 @@ The application is missing:
 
 ## More Detailed Workflow
 
+Diagrams:
+    * [class_diagram](./docs/class_diagram_simplified.md)
+    * [state_machine](./docs/state_machine_diagram.md)
+
 ### Register a New Instance
 
 We assume that the instances are managed by an agent and can self-register to the coordinator provided an identity or a token.
@@ -142,3 +146,17 @@ These packages are LLM generated to make tesing easier
 * [pkg/simulator](./pkg/simulator/) 
 
 Most of the documentation in the [docs](./docs/) folder is LLM generated including the diagrams.
+
+## Rough amount of time spent on developing the system
+
+time spent: ~8h
+time wasted:
+  * Trying to get a simulator working and CLI, I started the implementation but then discarded due to time limit
+  * Implementing and testing real database layer (discard due to time limit)
+
+time developing:
+  * Implementing the Rollback logic
+  * Decoupeling deployment Trigger and Deployment Startegy
+  * Getting clear and detailed documentation
+    * [class_diagram](./docs/class_diagram_simplified.md)
+    * [state_machine](./docs/state_machine_diagram.md)
