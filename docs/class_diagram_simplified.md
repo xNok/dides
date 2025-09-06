@@ -1,7 +1,7 @@
-# `SHA1 hashes`
+# classDiagram
 
 ```mermaid
-`SHA1 hashes`
+classDiagram
     title DIDES Application - Core Struct Relationships
     note "Inventory, Deployment, and Strategy"
 

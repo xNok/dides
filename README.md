@@ -1,13 +1,19 @@
 # DIDES
 
-Distributed deployment system that safely rolls out updates across many service instances.
+A distributed deployment system that safely rolls out updates across many service instances.
 
 ![](./dides.png)
 
 ## How to Run the System
 
-```
+```bash
 go run ./cmd/controller/main.go
+```
+
+Note: Most of the end-to-end testing logic is in [main_test.go](./cmd/main_test.go) until a CLI is provided for testing.
+
+```bash
+go test ./cmd/controller/... -v
 ```
 
 ### Inventory Management
@@ -21,15 +27,16 @@ go run ./cmd/controller/main.go
 - `POST /deploy/progress` - Manually progress deployment
 - `POST /deploy/rollback` - Manually trigger rollback
 
-### Assumptions made, design decisions, notes, thoughts etc
+### Assumptions Made, Design Decisions, Notes, and Thoughts
 
-* Decouple Inventory and Instance update from the deployment management
-  * Applying updates can be slow or unreliable thus it is better to get the big picture each time we decide to progress the deployment
-  * Instance updates can have a high throughput while deployment need to progress at steady pace
-* Introduce the concept of `DeploymentStrategy` to support for different deployment strategies (canary, percentage rollout, etc.)
-  * The `DeploymentTrigger` delegate the `desired_state` updates to the `DeploymentStrategy`
-* Use semantic version instead of `SHA1 hashes` as it makes test more readable while not changing the logic (aka. `SHA1 hashes` can still be used)
-* 
+* Decouple inventory and instance updates from deployment management
+  * Applying updates can be slow or unreliable, so it is better to get the big picture each time we decide to progress the deployment
+  * Instance updates can have high throughput while deployments need to progress at a steady pace
+* Use `POST /deploy/progress` to make the reconciliation loop progress and have deterministic tests
+  * The reconciliation loop would require a scheduling library to run periodically (for instance, every 10s)
+* Introduce the concept of `DeploymentStrategy` to support different deployment strategies (canary, percentage rollout, etc.)
+  * The `DeploymentTrigger` delegates the `desired_state` updates to the `DeploymentStrategy`
+* Use semantic versioning instead of `SHA1 hashes` as it makes tests more readable while not changing the logic (i.e., `SHA1 hashes` can still be used)
 
 ## Implemented vs. Skipped
 
@@ -72,7 +79,7 @@ POST /inventory/instances/register
 
 ## Instance Heartbeat
 
-We assume we receive regular heartbeats from the instances with an update with `code_version`, `configuration_version` and `status`
+We assume we receive regular heartbeats from the instances with updates containing `code_version`, `configuration_version`, and `status`
 
 ```
 PATCH /inventory/instances/{instanceName}
@@ -95,7 +102,7 @@ FAILED   => 3
 
 ## Deployment Trigger
 
-You can deploy a new version to a set of instances using the deploy endpoint. The body tells the coordinator the desired state, the target instances and configuration about the deployment process itself.
+You can deploy a new version to a set of instances using the deploy endpoint. The body tells the coordinator the desired state, the target instances, and configuration about the deployment process itself.
 
 ```
 POST /deploy
@@ -116,16 +123,16 @@ The system only accepts one in-flight deployment at a time.
 
 ## Deployment Progress (After a Trigger)
 
-Once a deployment is triggered, the coordinator updates the desired state (`code_version`, `configuration_version`) for up to `batch_size` instances and monitors the progress of the deployment with the instances' heartbeats.
+Once a deployment is triggered, the coordinator updates the desired state (`code_version`, `configuration_version`) for up to `batch_size` instances and monitors the progress of the deployment through the instances' heartbeats.
 
-Once instances report `HEALTHY` and `code_version == target_code_version`, then the deployment progresses by updating the `target_code_version` for one of the remaining instances. The update process can be automated using a reconciliation interval. However, to provide a simple way of testing the implementation, we can use the following endpoint.
+Once instances report `HEALTHY` and `code_version == target_code_version`, the deployment progresses by updating the `target_code_version` for one of the remaining instances. The update process can be automated using a reconciliation interval. However, to provide a simple way to test the implementation, we can use the following endpoint.
 
 ```
 POST /deploy/progress
 {}
 ```
 
-In the best case scenario, all instances eventually report `HEALTHY` and `current_state == desired_state`. Then the deployment status is marked as completed.
+In the best-case scenario, all instances eventually report `HEALTHY` and `current_state == desired_state`. Then the deployment status is marked as completed.
 
 
 
