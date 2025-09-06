@@ -37,6 +37,7 @@ go test ./cmd/controller/... -v
 * Introduce the concept of `DeploymentStrategy` to support different deployment strategies (canary, percentage rollout, etc.)
   * The `DeploymentTrigger` delegates the `desired_state` updates to the `DeploymentStrategy`
 * Use semantic versioning instead of `SHA1 hashes` as it makes tests more readable while not changing the logic (i.e., `SHA1 hashes` can still be used)
+* Added labels filtering on resource to only target a subset of instances to be updated.
 
 ## Implemented vs. Skipped
 
@@ -95,8 +96,7 @@ We use status codes to represent the status of an instance
 ```
 UNKNOWN  => 0
 HEALTHY  => 1
-DEGRADED => 2
-FAILED   => 3
+FAILED   => 2
 ```
 
 
@@ -135,5 +135,10 @@ POST /deploy/progress
 In the best-case scenario, all instances eventually report `HEALTHY` and `current_state == desired_state`. Then the deployment status is marked as completed.
 
 
+## Which parts were LLM-written vs handcrafted
 
+These packages are LLM generated to make tesing easier 
+* [internal/infra/in-memory/](./internal/infra/in-memory/) 
+* [pkg/simulator](./pkg/simulator/) 
 
+Most of the documentation in the [docs](./docs/) folder is LLM generated including the diagrams.

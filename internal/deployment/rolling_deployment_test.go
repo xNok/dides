@@ -252,7 +252,7 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 
 		step5Progress := deployment.DeploymentProgress{
 			TotalMatchingInstances: 5,
-			InProgressInstances:    2, // This will be fixed once the logic is corrected - should be 1 for instance 5
+			InProgressInstances:    1,
 			CompletedInstances:     4, // instances 1, 2, 3, 4 completed
 			FailedInstances:        0,
 		}
@@ -340,10 +340,6 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
 		mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1)  // 2 completed
 		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1) // 0 in progress
-
-		// Algorithm doesn't start new instances in this step - just updates progress
-		// No GetNeedingUpdate or UpdateDesiredState calls expected
-
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			validateProgress(r.Progress, step3Progress, "Step 3")
 			return nil
@@ -360,10 +356,6 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 		mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
 		mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1)  // Still 2 completed
 		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 instances in progress
-
-		// Since progress == BatchSize (2), no new instances should be started - the algorithm will return early
-		// So we don't expect GetNeedingUpdate or UpdateDesiredState calls
-
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			validateProgress(r.Progress, step4Progress, "Step 4")
 			return nil
@@ -379,11 +371,12 @@ func TestRollingDeployment_CompleteDeploymentScenario(t *testing.T) {
 
 		mockInventory.EXPECT().CountFailed(gomock.Any(), record.Request.Labels, desiredState).Return(0, nil).Times(1)
 		mockInventory.EXPECT().CountCompleted(gomock.Any(), record.Request.Labels, desiredState).Return(4, nil).Times(1)  // 4 completed
-		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(2, nil).Times(1) // 2 instances in progress (might be a bug in the implementation)
-
-		// Since progress == BatchSize (2), no new instances should be started
-		// The algorithm returns early without calling GetNeedingUpdate or UpdateDesiredState
-
+		mockInventory.EXPECT().CountInProgress(gomock.Any(), record.Request.Labels, desiredState).Return(1, nil).Times(1) // 1 instance in progress
+		mockInventory.EXPECT().GetNeedingUpdate(gomock.Any(), record.Request.Labels, desiredState, gomock.Any()).DoAndReturn(
+			func(ctx context.Context, labels map[string]string, state inventory.State, opts *inventory.GetNeedingUpdateOptions) ([]*inventory.Instance, error) {
+				// No new instances we are waiting for the last one to finish
+				return []*inventory.Instance{}, nil
+			}).Times(1)
 		mockStore.EXPECT().Update(gomock.Any()).DoAndReturn(func(r *deployment.DeploymentRecord) error {
 			validateProgress(r.Progress, step5Progress, "Step 5")
 			return nil
